@@ -1,0 +1,30 @@
+{
+  "menus": [
+    {
+      "title": "File",
+      "items": [
+        {"label": "New", "icon": "fa6s.plus", "shortcut": "Ctrl+N"},
+        {"label": "Open", "icon": "fa6s.folder-open", "shortcut": "Ctrl+O"},
+        {"label": "Exit", "icon": "fa6s.right-from-bracket", "role": "quit", "shortcut": "Ctrl+Q"}
+      ]
+    },
+    {
+      "title": "Edit",
+      "items": [
+        {"label": "Preferences", "icon": "fa6s.sliders"}
+      ]
+    },
+    {
+      "title": "Help",
+      "items": [
+        {"label": "About", "icon": "fa6s.circle-info", "role": "about"},
+        {"label": "License", "icon": "fa6s.book", "role": "license"},
+        {"label": "WhatsApp", "icon": "fa6b.whatsapp", "role": "whatsapp"},
+        {"label": "TikTok", "icon": "fa6b.tiktok", "role": "tiktok"},
+        {"label": "Readme", "icon": "fa6s.book-open", "role": "readme"},
+        {"label": "Telegram", "icon": "fa6b.telegram", "role": "telegram"},
+        {"label": "Repository", "icon": "fa6b.github", "role": "repo"}
+      ]
+    }
+  ]
+}
