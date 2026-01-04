@@ -393,6 +393,22 @@ class SidebarNavigationWidget(QWidget):
     
     def refresh_tree(self):
         self.populate_tree()
+        self._show_status('Refreshed', 1500)
+
+    def _show_status(self, text: str, timeout: int = 0):
+        try:
+            window = self.window()
+            if window is None:
+                return
+            sb = window.statusBar()
+            if sb is None:
+                return
+            if hasattr(sb, 'show_temporary'):
+                sb.show_temporary(text, timeout)
+            else:
+                sb.showMessage(text, timeout)
+        except Exception as e:
+            print(f"Failed to show status: {e}")
     
     def on_item_clicked(self, item, column):
         path = item.data(0, Qt.UserRole)
