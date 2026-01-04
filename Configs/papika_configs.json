@@ -4,8 +4,15 @@
   "status": "Alpha",
   "license": "MIT",
   "developer": "Desainia Studio",
-  "tagline": "Cute but Smart Media Sorter",
+  "tagline": "Cute and Smart Media Sorter",
   "description": "Papika is small and cute media sorter application designed to help users organize their media files efficiently. With an intuitive interface and smart sorting algorithms, Papika makes it easy to categorize and manage your media collection.",
+  "splash": {
+    "image": "papika_splash_image.png",
+    "delay_ms": 100,
+    "text_color": "#70332c",
+    "panel_color": "#fcb171",
+    "panel_radius": 12
+  },
   "window": {
     "min_width": 800,
     "min_height": 600

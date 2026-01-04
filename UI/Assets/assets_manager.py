@@ -1,5 +1,6 @@
 from pathlib import Path
 from PySide6.QtGui import QIcon, QPixmap
+from Configs.configs_file_manager import load_config
 
 ICON_DIRS = ["Icons", "Mascot", "Illustrations"]
 
@@ -24,3 +25,9 @@ def get_pixmap(name: str, base_path: Path) -> QPixmap:
                 raise ValueError(f"Failed to load image: {p}")
             return pix
     raise FileNotFoundError(f"Image not found in assets: {name}")
+
+
+def get_splash_pixmap(base_path: Path) -> QPixmap:
+    cfg = load_config(base_path)
+    splash_name = cfg["splash"]["image"]
+    return get_pixmap(splash_name, base_path)
