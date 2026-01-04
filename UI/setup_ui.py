@@ -4,6 +4,7 @@ from PySide6.QtGui import QGuiApplication
 from Configs.configs_file_manager import load_config as load_app_config, load_env, load_menu_config
 from UI.Widgets.status_bar_widget import StatusBar
 from UI.Widgets.menu_bar_widget import MenuBar
+from UI.Widgets.SideBarWidget.sidebar_widget import Sidebar
 from UI.Assets.assets_manager import get_icon
 import sys
 import ctypes
@@ -60,6 +61,9 @@ def apply_window_metadata(window, base_path: Path):
     menu_cfg = load_menu_config(base_path)
     menubar = MenuBar(menu_cfg, base_path, parent=window)
     window.setMenuBar(menubar)
+    sidebar = Sidebar(base_path, parent=window)
+    window.setCentralWidget(sidebar)
+    return sidebar
     icon = get_icon("app_icon.ico", base_path)
     window.setWindowIcon(icon)
 

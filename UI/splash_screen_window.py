@@ -1,18 +1,22 @@
 from pathlib import Path
 import sys
 from PySide6.QtWidgets import QSplashScreen, QApplication
-from PySide6.QtCore import Qt, QTimer, QRect
+from PySide6.QtCore import Qt, QTimer, QRect, Signal
 from PySide6.QtGui import QPixmap, QFont, QPainter, QColor, QPen, QFontMetrics
 from Configs.configs_file_manager import load_config
 from UI.Assets.assets_manager import get_splash_pixmap
 
 
 class SplashScreen(QSplashScreen):
+    status_changed = Signal(str)
+    
     def __init__(self, base_path: Path):
         self.base_path = base_path
         self.cfg = load_config(base_path)
+        self.current_status = "Initializing..."
         pixmap = self._create_pixmap()
         super().__init__(pixmap, Qt.WindowStaysOnTopHint)
+        self.status_changed.connect(self.update_status)
 
     def _create_pixmap(self) -> QPixmap:
         margin = 20
@@ -97,28 +101,42 @@ class SplashScreen(QSplashScreen):
         desc_lines = 4
         desc_h = desc_line_h * desc_lines
         painter.drawText(QRect(text_x, y, text_width, desc_h), Qt.TextWordWrap | Qt.AlignJustify, description)
-        y += (2 * desc_h) + 8
+        y += desc_h + 16
+        
+        status_font = QFont(font_family, 11)
+        status_font.setBold(True)
+        painter.setFont(status_font)
+        status_metrics = QFontMetrics(status_font)
+        status_h = status_metrics.height()
+        self.status_rect = QRect(text_x, y, text_width, status_h)
+        painter.drawText(self.status_rect, Qt.AlignLeft | Qt.AlignVCenter, self.current_status)
+        y += status_h + 16
 
         meta_font = QFont(font_family, 10)
         meta_font.setItalic(True)
         painter.setFont(meta_font)
-        # right align developer and license
         painter.drawText(QRect(text_x, y, text_width, line_spacing), Qt.AlignRight | Qt.AlignVCenter, f"Developer: {developer}")
         y += line_spacing
         painter.drawText(QRect(text_x, y, text_width, line_spacing), Qt.AlignRight | Qt.AlignVCenter, f"License: {license_text}")
 
         painter.end()
         return pixmap
+    
+    def update_status(self, status_text):
+        self.current_status = status_text
+        pixmap = self._create_pixmap()
+        self.setPixmap(pixmap)
+        QApplication.processEvents()
 
 
 def show_splash(base_path: Path, delay_ms: int = 2000):
     splash = SplashScreen(base_path)
     splash.show()
+    splash.update_status("Scanning drives on system...")
     QApplication.processEvents()
     screen = splash.screen() or QApplication.primaryScreen()
     available = screen.availableGeometry()
     frame = splash.frameGeometry()
     frame.moveCenter(available.center())
     splash.move(frame.topLeft())
-    QTimer.singleShot(delay_ms, splash.close)
     return splash

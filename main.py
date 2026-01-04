@@ -18,11 +18,31 @@ def main():
     splash_delay = cfg["splash"]["delay_ms"]
 
     splash = show_splash(BASE_PATH, delay_ms=splash_delay)
+    
+    splash.update_status("Initializing application...")
+    app.processEvents()
 
     win = MainWindow(base_path=BASE_PATH)
-    apply_window_metadata(win, BASE_PATH)
+    
+    splash.update_status("Loading user interface...")
+    app.processEvents()
+    
+    sidebar = apply_window_metadata(win, BASE_PATH)
+    
+    def on_scan_progress(status):
+        splash.update_status(status)
+        app.processEvents()
+    
+    sidebar.start_navigation_init(on_scan_progress)
+    
+    app.processEvents()
 
-    QTimer.singleShot(splash_delay, lambda: (win.show(), center_on_screen(win)))
+    def show_window():
+        splash.close()
+        win.show()
+        center_on_screen(win)
+    
+    QTimer.singleShot(splash_delay, show_window)
 
     sys.exit(app.exec())
 
