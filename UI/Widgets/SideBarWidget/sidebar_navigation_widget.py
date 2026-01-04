@@ -121,6 +121,14 @@ class SidebarNavigationWidget(QWidget):
         self.go_button.clicked.connect(self.navigate_to_path)
         search_layout.addWidget(self.go_button)
         
+        self.paste_button = QPushButton()
+        self.paste_button.setIcon(qta.icon("fa6s.clipboard"))
+        self.paste_button.setFixedSize(28, 28)
+        self.paste_button.setFlat(True)
+        self.paste_button.setToolTip("Paste path from clipboard")
+        self.paste_button.clicked.connect(self.paste_from_clipboard)
+        search_layout.addWidget(self.paste_button)
+
         self.refresh_button = QPushButton()
         self.refresh_button.setIcon(qta.icon("fa6s.arrows-rotate"))
         self.refresh_button.setFixedSize(28, 28)
@@ -425,6 +433,16 @@ class SidebarNavigationWidget(QWidget):
             return
 
         self._expand_to_path(path)
+    
+    def paste_from_clipboard(self):
+        clipboard = QApplication.clipboard()
+        text = clipboard.text().strip()
+        if not text:
+            return
+        if (text.startswith('"') and text.endswith('"')) or (text.startswith("'") and text.endswith("'")):
+            text = text[1:-1]
+        self.path_input.setText(text)
+        self.navigate_to_path()
     
     def eventFilter(self, obj, event):
         if obj is self.path_input and event.type() == QEvent.KeyPress:
