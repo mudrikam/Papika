@@ -55,7 +55,7 @@ class NavigationToolbarWidget(QToolBar):
         self.path_display.setReadOnly(False)
         self.path_display.setText("")
         self.path_display.setPlaceholderText('Enter path...')
-        self.path_display.setToolTip(str(self.base_path))
+        self.path_display.setToolTip('Enter path and press Enter')
         self.path_display.setMinimumWidth(300)
         self.path_display.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.path_display.setFixedHeight(control_height)

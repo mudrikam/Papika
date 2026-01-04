@@ -5,7 +5,9 @@ from Configs.configs_file_manager import load_config as load_app_config, load_en
 from UI.Widgets.status_bar_widget import StatusBar
 from UI.Widgets.menu_bar_widget import MenuBar
 from UI.Widgets.ToolBarWidget.navigation_toolbar_widget import NavigationToolbarWidget
+from UI.Widgets.ToolBarWidget.action_toolbar_widget import ActionToolbarWidget
 from UI.Widgets.SideBarWidget.sidebar_widget import Sidebar
+from UI.Widgets.CentralWidget.central_widget import CentralWidget
 from UI.Assets.assets_manager import get_icon
 import sys
 import ctypes
@@ -62,17 +64,44 @@ def apply_window_metadata(window, base_path: Path):
     menu_cfg = load_menu_config(base_path)
     menubar = MenuBar(menu_cfg, base_path, parent=window)
     window.setMenuBar(menubar)
-    toolbar = NavigationToolbarWidget(base_path, parent=window)
-    window.addToolBar(toolbar)
+    nav_toolbar = NavigationToolbarWidget(base_path, parent=window)
+    action_toolbar = ActionToolbarWidget(base_path, parent=window)
+    search_toolbar = None
+    settings_toolbar = None
+
     sidebar = Sidebar(base_path, parent=window)
+
+    central = CentralWidget(parent=window)
+    old = sidebar.content
+    old.setParent(None)
+    old.deleteLater()
+    sidebar.content = central
+    sidebar.splitter.addWidget(central)
+    sidebar.splitter.setCollapsible(1, False)
+    sidebar.splitter.setStretchFactor(1, 1)
+
     window.setCentralWidget(sidebar)
-    
-    if hasattr(sidebar, 'navigation') and sidebar.navigation:
-        nav = sidebar.navigation
-        nav.path_selected.connect(toolbar.update_path)
-        toolbar.path_changed.connect(lambda path: nav.path_input.setText(path))
-        toolbar.path_changed.connect(lambda path: nav.navigate_to_path())
-        toolbar.refresh_requested.connect(nav.refresh_tree)
-    
+
+    # instantiate optional toolbars (kept separate in case of missing Qt availability)
+    from UI.Widgets.ToolBarWidget.search_toolbar_widget import SearchToolbarWidget
+    from UI.Widgets.ToolBarWidget.settings_toolbar_widget import SettingsToolbarWidget
+    search_toolbar = SearchToolbarWidget(base_path, parent=window)
+    settings_toolbar = SettingsToolbarWidget(base_path, parent=window)
+
+    # add all toolbars (hidden by default); manager will control visibility
+    window.addToolBar(nav_toolbar)
+    window.addToolBar(action_toolbar)
+    window.addToolBar(search_toolbar)
+    window.addToolBar(settings_toolbar)
+    nav_toolbar.setVisible(False)
+    action_toolbar.setVisible(False)
+    search_toolbar.setVisible(False)
+    settings_toolbar.setVisible(False)
+
+    # centralize connections in a manager
+    from UI.Widgets.widget_connection_manager import WidgetConnectionManager
+    manager = WidgetConnectionManager(parent=window)
+    manager.setup(window, sidebar, nav_toolbar=nav_toolbar, action_toolbar=action_toolbar, search_toolbar=search_toolbar, settings_toolbar=settings_toolbar)
+
     return sidebar
 
