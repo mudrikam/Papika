@@ -1,7 +1,7 @@
 from pathlib import Path
-from PySide6.QtWidgets import QToolBar, QLineEdit, QComboBox, QWidget, QSizePolicy
-from PySide6.QtGui import QAction
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import QToolBar, QLineEdit, QComboBox, QSizePolicy, QApplication
+from PySide6.QtGui import QAction, QPalette
+from PySide6.QtCore import Qt, Signal, QTimer
 import qtawesome as qta
 
 
@@ -11,6 +11,10 @@ class NavigationToolbarWidget(QToolBar):
     navigate_up = Signal()
     refresh_requested = Signal()
     path_changed = Signal(str)
+    view_mode_changed = Signal(str)
+    sort_changed = Signal(str)
+    grid_width_changed = Signal(int)
+    search_triggered = Signal(str)
     
     def __init__(self, base_path: Path, parent=None):
         super().__init__(parent)
@@ -18,34 +22,37 @@ class NavigationToolbarWidget(QToolBar):
         self.setMovable(False)
         self.history = []
         self.history_index = -1
+        self._current_view = 'grid'
+        self._determine_theme_colors()
         self._create_actions()
+        self._set_view_mode(self._current_view)
 
     def _create_actions(self):
-        back_icon = qta.icon('fa6s.arrow-left')
+        back_icon = qta.icon('fa6s.arrow-left', color=self._inactive_color)
         self.back_action = QAction(back_icon, 'Back', self)
         self.back_action.setToolTip('Back')
         self.back_action.triggered.connect(self._on_back)
         self.back_action.setEnabled(False)
         self.addAction(self.back_action)
 
-        forward_icon = qta.icon('fa6s.arrow-right')
+        forward_icon = qta.icon('fa6s.arrow-right', color=self._inactive_color)
         self.forward_action = QAction(forward_icon, 'Forward', self)
         self.forward_action.setToolTip('Forward')
         self.forward_action.triggered.connect(self._on_forward)
         self.forward_action.setEnabled(False)
         self.addAction(self.forward_action)
 
-        up_icon = qta.icon('fa6s.arrow-up')
+        up_icon = qta.icon('fa6s.arrow-up', color=self._active_color)
         self.up_action = QAction(up_icon, 'Up', self)
         self.up_action.setToolTip('Up')
         self.up_action.triggered.connect(self._on_up)
         self.addAction(self.up_action)
 
-        refresh_icon = qta.icon('fa6s.rotate')
-        refresh = QAction(refresh_icon, 'Refresh', self)
-        refresh.setToolTip('Refresh')
-        refresh.triggered.connect(self._refresh)
-        self.addAction(refresh)
+        refresh_icon = qta.icon('fa6s.rotate', color=self._active_color)
+        self.refresh_action = QAction(refresh_icon, 'Refresh', self)
+        self.refresh_action.setToolTip('Refresh')
+        self.refresh_action.triggered.connect(self._refresh)
+        self.addAction(self.refresh_action)
 
         self.addSeparator()
 
@@ -62,6 +69,18 @@ class NavigationToolbarWidget(QToolBar):
         self.path_display.returnPressed.connect(self._on_path_entered)
         self.addWidget(self.path_display)
 
+        paste_icon = qta.icon('fa6s.clipboard', color=self._active_color)
+        self.paste_action = QAction(paste_icon, 'Paste', self)
+        self.paste_action.setToolTip('Paste from clipboard')
+        self.paste_action.triggered.connect(self._on_paste)
+        self.addAction(self.paste_action)
+
+        clear_icon = qta.icon('fa6s.xmark', color=self._active_color)
+        self.clear_action = QAction(clear_icon, 'Clear', self)
+        self.clear_action.setToolTip('Clear path')
+        self.clear_action.triggered.connect(self._on_clear)
+        self.addAction(self.clear_action)
+
         self.addSeparator()
 
         self.search_field = QLineEdit(self)
@@ -70,37 +89,51 @@ class NavigationToolbarWidget(QToolBar):
         self.search_field.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
         self.search_field.setFixedHeight(control_height)
         self.search_field.returnPressed.connect(self._on_search)
+        self._search_debounce_ms = 300
+        self._search_timer = QTimer(self)
+        self._search_timer.setSingleShot(True)
+        self._search_timer.timeout.connect(lambda: self.search_triggered.emit(self.search_field.text().strip()))
+        self.search_field.textChanged.connect(self._on_search_text_changed)
         self.addWidget(self.search_field)
 
         self.addSeparator()
 
-        self.filter_combo = QComboBox(self)
-        self.filter_combo.addItems(['All', 'Files', 'Folders', 'Images', 'Documents'])
-        self.filter_combo.setToolTip('Filter')
-        self.filter_combo.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
-        self.filter_combo.setFixedHeight(control_height)
-        self.filter_combo.currentTextChanged.connect(self._on_filter_changed)
-        self.addWidget(self.filter_combo)
+        self.sort_combo = QComboBox(self)
+        self.sort_combo.addItems(['Name', 'Size', 'Date'])
+        self.sort_combo.setToolTip('Sort by')
+        self.sort_combo.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+        self.sort_combo.setFixedHeight(control_height)
+        self.sort_combo.currentTextChanged.connect(lambda text: self.sort_changed.emit(text))
+        self.addWidget(self.sort_combo)
+
+        self.grid_width_combo = QComboBox(self)
+        self.grid_width_combo.addItems([str(i) for i in range(2, 21)])
+        self.grid_width_combo.setCurrentText('6')
+        self.grid_width_combo.setToolTip('Grid columns')
+        self.grid_width_combo.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+        self.grid_width_combo.setFixedHeight(control_height)
+        self.grid_width_combo.currentTextChanged.connect(lambda text: self.grid_width_changed.emit(int(text)))
+        self.addWidget(self.grid_width_combo)
 
         self.addSeparator()
 
-        list_view_icon = qta.icon('fa6s.list')
-        list_view = QAction(list_view_icon, 'List View', self)
-        list_view.setToolTip('List View')
-        list_view.triggered.connect(lambda: self._show_status('List View', 1500))
-        self.addAction(list_view)
+        list_view_icon = qta.icon('fa6s.list', color=self._active_color)
+        self.list_view_action = QAction(list_view_icon, 'List View', self)
+        self.list_view_action.setToolTip('List View')
+        self.list_view_action.triggered.connect(lambda: self._set_view_mode('list'))
+        self.addAction(self.list_view_action)
 
-        grid_view_icon = qta.icon('fa6s.table-cells-large')
-        grid_view = QAction(grid_view_icon, 'Grid View', self)
-        grid_view.setToolTip('Grid View')
-        grid_view.triggered.connect(lambda: self._show_status('Grid View', 1500))
-        self.addAction(grid_view)
+        grid_view_icon = qta.icon('fa6s.table-cells-large', color=self._inactive_color)
+        self.grid_view_action = QAction(grid_view_icon, 'Grid View', self)
+        self.grid_view_action.setToolTip('Grid View')
+        self.grid_view_action.triggered.connect(lambda: self._set_view_mode('grid'))
+        self.addAction(self.grid_view_action)
 
-        detail_view_icon = qta.icon('fa6s.table-list')
-        detail_view = QAction(detail_view_icon, 'Detail View', self)
-        detail_view.setToolTip('Detail View')
-        detail_view.triggered.connect(lambda: self._show_status('Detail View', 1500))
-        self.addAction(detail_view)
+        detail_view_icon = qta.icon('fa6s.table-list', color=self._inactive_color)
+        self.detail_view_action = QAction(detail_view_icon, 'Detail View', self)
+        self.detail_view_action.setToolTip('Detail View')
+        self.detail_view_action.triggered.connect(lambda: self._set_view_mode('details'))
+        self.addAction(self.detail_view_action)
 
     def _on_back(self):
         if self.history_index > 0:
@@ -137,8 +170,21 @@ class NavigationToolbarWidget(QToolBar):
         self._show_status('Refreshed', 1500)
 
     def _on_search(self):
-        query = self.search_field.text()
+        if hasattr(self, '_search_timer') and self._search_timer.isActive():
+            self._search_timer.stop()
+        query = self.search_field.text().strip()
+        self.search_triggered.emit(query)
         self._show_status(f'Search: {query}', 2000)
+
+    def _on_search_text_changed(self, text: str):
+        t = (text or '').strip()
+        if not t:
+            if hasattr(self, '_search_timer') and self._search_timer.isActive():
+                self._search_timer.stop()
+            self.search_triggered.emit('')
+            return
+        if hasattr(self, '_search_timer'):
+            self._search_timer.start(self._search_debounce_ms)
 
     def _on_path_entered(self):
         path = self.path_display.text().strip()
@@ -148,8 +194,27 @@ class NavigationToolbarWidget(QToolBar):
         self.path_changed.emit(path)
         self._show_status(f'Navigated to {path}', 1500)
 
-    def _on_filter_changed(self, text: str):
-        self._show_status(f'Filter: {text}', 1500)
+    def _on_paste(self):
+        from PySide6.QtWidgets import QApplication
+        clipboard = QApplication.clipboard()
+        text = clipboard.text().strip()
+        if not text:
+            return
+        if (text.startswith('"') and text.endswith('"')) or (text.startswith("'") and text.endswith("'")):
+            text = text[1:-1]
+        self.path_display.setText(text)
+        self._on_path_entered()
+        self._show_status('Pasted from clipboard', 1500)
+
+    def _on_clear(self):
+        self.path_display.clear()
+        self.path_changed.emit('')
+        main_window = self.window()
+        if main_window:
+            central_widget = main_window.centralWidget()
+            if central_widget and hasattr(central_widget, 'navigation'):
+                central_widget.navigation.collapse_tree()
+        self._show_status('Cleared', 1500)
 
     def set_path(self, path: str):
         self.path_display.setText(path)
@@ -165,8 +230,54 @@ class NavigationToolbarWidget(QToolBar):
         self._update_navigation_buttons()
     
     def _update_navigation_buttons(self):
-        self.back_action.setEnabled(self.history_index > 0)
-        self.forward_action.setEnabled(self.history_index < len(self.history) - 1)
+        back_enabled = self.history_index > 0
+        forward_enabled = self.history_index < len(self.history) - 1
+        self.back_action.setEnabled(back_enabled)
+        self.forward_action.setEnabled(forward_enabled)
+        self.back_action.setIcon(qta.icon('fa6s.arrow-left', color=self._active_color if back_enabled else self._inactive_color))
+        self.forward_action.setIcon(qta.icon('fa6s.arrow-right', color=self._active_color if forward_enabled else self._inactive_color))
+        self.paste_action.setIcon(qta.icon('fa6s.clipboard', color=self._active_color if self.paste_action.isEnabled() else self._inactive_color))
+        self.clear_action.setIcon(qta.icon('fa6s.xmark', color=self._active_color if self.clear_action.isEnabled() else self._inactive_color))
+    
+    def _set_view_mode(self, mode):
+        self._current_view = mode
+        
+        self.list_view_action.setIcon(qta.icon('fa6s.list', 
+            color=self._active_color if mode == 'list' else self._inactive_color))
+        self.grid_view_action.setIcon(qta.icon('fa6s.table-cells-large', 
+            color=self._active_color if mode == 'grid' else self._inactive_color))
+        self.detail_view_action.setIcon(qta.icon('fa6s.table-list', 
+            color=self._active_color if mode == 'details' else self._inactive_color))
+        
+        self.view_mode_changed.emit(mode)
+        self._show_status(f'{mode.capitalize()} View', 1500)
+
+    def _determine_theme_colors(self):
+        app = QApplication.instance()
+        dark = True
+        if app:
+            wc = app.palette().color(QPalette.Window)
+            lum = 0.299 * wc.red() + 0.587 * wc.green() + 0.114 * wc.blue()
+            dark = lum < 128
+        if dark:
+            self._base_icon_color = '#FFFFFF'
+            self._inactive_color = '#9CA3AF'
+        else:
+            self._base_icon_color = '#000000'
+            self._inactive_color = '#6B7280'
+        self._active_color = '#f7a128'
+    
+    def update_extensions(self, extensions):
+        current = self.sort_combo.currentText()
+        self.sort_combo.clear()
+        self.sort_combo.addItems(['Name', 'Size', 'Date'])
+        if extensions:
+            for ext in extensions:
+                self.sort_combo.addItem(ext.upper())
+        if current:
+            idx = self.sort_combo.findText(current)
+            if idx >= 0:
+                self.sort_combo.setCurrentIndex(idx)
 
     def _show_status(self, text: str, timeout: int = 2000):
         parent = self.parentWidget()

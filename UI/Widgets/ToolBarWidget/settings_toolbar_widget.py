@@ -1,6 +1,6 @@
 from pathlib import Path
-from PySide6.QtWidgets import QToolBar
-from PySide6.QtGui import QAction
+from PySide6.QtWidgets import QToolBar, QApplication
+from PySide6.QtGui import QAction, QPalette
 from PySide6.QtCore import Signal
 import qtawesome as qta
 
@@ -15,15 +15,31 @@ class SettingsToolbarWidget(QToolBar):
         self._create_actions()
 
     def _create_actions(self):
-        prefs_icon = qta.icon('fa6s.sliders')
+        self._determine_theme_colors()
+        prefs_icon = qta.icon('fa6s.sliders', color=self._base_icon_color)
         prefs = QAction(prefs_icon, 'Preferences', self)
         prefs.triggered.connect(lambda: self._show_status('Open Preferences', 1500))
         self.addAction(prefs)
 
-        reload_icon = qta.icon('fa6s.arrows-rotate')
-        reload = QAction(reload_icon, 'Reload', self)
-        reload.triggered.connect(self._on_reload)
-        self.addAction(reload)
+        reload_icon = qta.icon('fa6s.arrows-rotate', color=self._active_color)
+        self.reload_action = QAction(reload_icon, 'Reload', self)
+        self.reload_action.triggered.connect(self._on_reload)
+        self.addAction(self.reload_action)
+
+    def _determine_theme_colors(self):
+        app = QApplication.instance()
+        dark = True
+        if app:
+            wc = app.palette().color(QPalette.Window)
+            lum = 0.299 * wc.red() + 0.587 * wc.green() + 0.114 * wc.blue()
+            dark = lum < 128
+        if dark:
+            self._base_icon_color = '#FFFFFF'
+            self._inactive_color = '#9CA3AF'
+        else:
+            self._base_icon_color = '#000000'
+            self._inactive_color = '#6B7280'
+        self._active_color = '#f7a128'
 
     def _on_reload(self):
         self.reload_requested.emit()

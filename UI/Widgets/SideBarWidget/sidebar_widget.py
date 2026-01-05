@@ -4,6 +4,7 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QF
 import qtawesome as qta
 from UI.Widgets.SideBarWidget.sidebar_navigation_widget import SidebarNavigationWidget
 from UI.Widgets.SideBarWidget.sidebar_details_widget import SidebarDetailsWidget
+from UI.Widgets.SideBarWidget.sidebar_action_widget import SidebarActionWidget
 
 class Sidebar(QWidget):
     active_tab_changed = Signal(str)
@@ -46,14 +47,6 @@ class Sidebar(QWidget):
         self.btn_files.clicked.connect(lambda: self.set_active_tab('files'))
         perm_layout.addWidget(self.btn_files, 0, Qt.AlignCenter)
         
-        self.btn_search = QPushButton()
-        self.btn_search.setIcon(qta.icon("fa6s.magnifying-glass", color=self._perm_inactive_color))
-        self.btn_search.setFixedSize(40, 40)
-        self.btn_search.setFlat(True)
-        self.btn_search.setToolTip("Search")
-        self.btn_search.clicked.connect(lambda: self.set_active_tab('search'))
-        perm_layout.addWidget(self.btn_search, 0, Qt.AlignCenter)
-        
         # Play / Run button (green when active)
         self._perm_play_color = '#16A34A'
         self.btn_play = QPushButton()
@@ -63,6 +56,14 @@ class Sidebar(QWidget):
         self.btn_play.setToolTip("Play")
         self.btn_play.clicked.connect(lambda: self.set_active_tab('play'))
         perm_layout.addWidget(self.btn_play, 0, Qt.AlignCenter)
+
+        self.btn_search = QPushButton()
+        self.btn_search.setIcon(qta.icon("fa6s.magnifying-glass", color=self._perm_inactive_color))
+        self.btn_search.setFixedSize(40, 40)
+        self.btn_search.setFlat(True)
+        self.btn_search.setToolTip("Search")
+        self.btn_search.clicked.connect(lambda: self.set_active_tab('search'))
+        perm_layout.addWidget(self.btn_search, 0, Qt.AlignCenter)
 
         self.btn_settings = QPushButton()
         self.btn_settings.setIcon(qta.icon("fa6s.gear", color=self._perm_inactive_color))
@@ -92,8 +93,12 @@ class Sidebar(QWidget):
         self.details.setMinimumHeight(120)
         self.details.setMaximumHeight(150)
         coll_layout.addWidget(self.details, 0)
+        self.action_widget = SidebarActionWidget()
+        self.action_widget.hide()
+        coll_layout.addWidget(self.action_widget, 1)
         
         self.navigation.path_selected.connect(self.details.update_path)
+        self.navigation.loading_changed.connect(self.details.show_loading)
 
         # Active tab state: 'files' | 'search' | 'settings' etc.
         self._active_tab = None
@@ -127,10 +132,15 @@ class Sidebar(QWidget):
         if tab_name == 'files':
             self.navigation.show()
             self.details.show()
+            self.action_widget.hide()
+        elif tab_name == 'play':
+            self.navigation.hide()
+            self.details.hide()
+            self.action_widget.show()
         else:
             self.navigation.hide()
             self.details.hide()
-        # emit change
+            self.action_widget.hide()
         self.active_tab_changed.emit(tab_name)
     
     def start_navigation_init(self, progress_callback=None):

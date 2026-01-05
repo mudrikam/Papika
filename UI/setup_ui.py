@@ -71,7 +71,7 @@ def apply_window_metadata(window, base_path: Path):
 
     sidebar = Sidebar(base_path, parent=window)
 
-    central = CentralWidget(parent=window)
+    central = CentralWidget(base_path, parent=window)
     old = sidebar.content
     old.setParent(None)
     old.deleteLater()

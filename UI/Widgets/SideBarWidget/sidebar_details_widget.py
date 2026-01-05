@@ -1,6 +1,7 @@
 from pathlib import Path
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QFrame
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QFrame, QProgressBar
 from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtGui import QFontMetrics
 import qtawesome as qta
 
 
@@ -56,9 +57,17 @@ class SidebarDetailsWidget(QWidget):
         layout.setSpacing(4)
         
         self.path_label = QLabel("No path selected")
-        self.path_label.setWordWrap(True)
+        self.path_label.setWordWrap(False)
         self.path_label.setStyleSheet("font-weight: bold;")
         layout.addWidget(self.path_label)
+        
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setMaximum(0)
+        self.progress_bar.setMinimum(0)
+        self.progress_bar.setTextVisible(False)
+        self.progress_bar.setFixedHeight(4)
+        self.progress_bar.setVisible(False)
+        layout.addWidget(self.progress_bar)
         
         separator = QFrame()
         separator.setFrameShape(QFrame.HLine)
@@ -74,6 +83,9 @@ class SidebarDetailsWidget(QWidget):
         self.size_label = QLabel("Total Size: -")
         layout.addWidget(self.size_label)
         
+        self.loaded_label = QLabel("Loaded: -")
+        layout.addWidget(self.loaded_label)
+        
         layout.addStretch()
     
     def update_path(self, path_str):
@@ -82,30 +94,31 @@ class SidebarDetailsWidget(QWidget):
             self.folders_label.setText("Folders: -")
             self.files_label.setText("Files: -")
             self.size_label.setText("Total Size: -")
+            self.loaded_label.setText("Loaded: -")
+            self.current_path = None
             return
         
-        self.current_path = path_str
         path = Path(path_str)
-        
         if path.is_file():
             path = path.parent
-            path_str = str(path)
-        
-        self.path_label.setText(str(path))
+        self.current_path = str(path)
+        self._set_elided_path()
         self.folders_label.setText("Folders: Analyzing...")
         self.files_label.setText("Files: Analyzing...")
         self.size_label.setText("Total Size: Analyzing...")
+        self.progress_bar.setVisible(True)
         
         if self.analyzer_thread and self.analyzer_thread.isRunning():
             self.analyzer_thread.finished.disconnect()
             self.analyzer_thread.quit()
             self.analyzer_thread.wait()
         
-        self.analyzer_thread = PathAnalyzerThread(path_str)
+        self.analyzer_thread = PathAnalyzerThread(self.current_path)
         self.analyzer_thread.finished.connect(self._update_stats)
         self.analyzer_thread.start()
     
     def _update_stats(self, stats):
+        self.progress_bar.setVisible(False)
         folder_count = stats.get('folders', 0)
         file_count = stats.get('files', 0)
         total_size = stats.get('total_size', 0)
@@ -125,3 +138,25 @@ class SidebarDetailsWidget(QWidget):
                 return f"{size_bytes:.2f} {unit}"
             size_bytes /= 1024.0
         return f"{size_bytes:.2f} PB"
+    
+    def _set_elided_path(self):
+        if not self.current_path:
+            self.path_label.setText("No path selected")
+            return
+        fm = QFontMetrics(self.path_label.font())
+        text = fm.elidedText(self.current_path, Qt.ElideMiddle, max(80, self.path_label.width()))
+        self.path_label.setText(text)
+    
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if self.current_path:
+            self._set_elided_path()
+
+    def show_loading(self, is_loading):
+        self.progress_bar.setVisible(is_loading)
+    
+    def update_loaded_count(self, loaded, total):
+        if total > 0:
+            self.loaded_label.setText(f"Loaded: {loaded}/{total}")
+        else:
+            self.loaded_label.setText("Loaded: -")

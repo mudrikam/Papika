@@ -2,8 +2,8 @@ import os
 import platform
 import time
 from pathlib import Path
-from PySide6.QtCore import Qt, QDir, QThread, QEvent, Signal
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QTreeWidget, QTreeWidgetItem, QLineEdit, QHBoxLayout, QPushButton, QApplication
+from PySide6.QtCore import Qt, QDir, QThread, Signal
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QTreeWidget, QTreeWidgetItem, QApplication
 import qtawesome as qta
 
 class DirectoryScanThread(QThread):
@@ -58,6 +58,9 @@ class InitializationThread(QThread):
 
 class SidebarNavigationWidget(QWidget):
     path_selected = Signal(str)
+    loading_changed = Signal(bool)
+    
+    MAX_ITEMS_PER_FOLDER = 100
     
     COLOR_MAP = {
         'volumes': '#3B82F6',
@@ -103,41 +106,6 @@ class SidebarNavigationWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
-        
-        search_layout = QHBoxLayout()
-        search_layout.setContentsMargins(8, 8, 8, 4)
-        
-        self.path_input = QLineEdit()
-        self.path_input.setPlaceholderText("Enter path...")
-        self.path_input.returnPressed.connect(self.navigate_to_path)
-        self.path_input.installEventFilter(self)
-        search_layout.addWidget(self.path_input)
-        
-        self.go_button = QPushButton()
-        self.go_button.setIcon(qta.icon("fa6s.arrow-right"))
-        self.go_button.setFixedSize(28, 28)
-        self.go_button.setFlat(True)
-        self.go_button.setToolTip("Go to path")
-        self.go_button.clicked.connect(self.navigate_to_path)
-        search_layout.addWidget(self.go_button)
-        
-        self.paste_button = QPushButton()
-        self.paste_button.setIcon(qta.icon("fa6s.clipboard"))
-        self.paste_button.setFixedSize(28, 28)
-        self.paste_button.setFlat(True)
-        self.paste_button.setToolTip("Paste path from clipboard")
-        self.paste_button.clicked.connect(self.paste_from_clipboard)
-        search_layout.addWidget(self.paste_button)
-
-        self.refresh_button = QPushButton()
-        self.refresh_button.setIcon(qta.icon("fa6s.arrows-rotate"))
-        self.refresh_button.setFixedSize(28, 28)
-        self.refresh_button.setFlat(True)
-        self.refresh_button.setToolTip("Refresh")
-        self.refresh_button.clicked.connect(self.refresh_tree)
-        search_layout.addWidget(self.refresh_button)
-        
-        layout.addLayout(search_layout)
         
         self.tree = QTreeWidget()
         self.tree.setHeaderHidden(True)
@@ -333,6 +301,7 @@ class SidebarNavigationWidget(QWidget):
                 self._load_directory_async(item, path)
     
     def _load_directory_async(self, parent_item, path_str):
+        self.loading_changed.emit(True)
         thread = DirectoryScanThread(path_str)
         thread.finished.connect(lambda entries: self._populate_entries(parent_item, entries))
         thread.finished.connect(lambda: self._cleanup_thread(thread))
@@ -342,6 +311,8 @@ class SidebarNavigationWidget(QWidget):
     def _cleanup_thread(self, thread):
         if thread in self.scan_threads:
             self.scan_threads.remove(thread)
+        if len(self.scan_threads) == 0:
+            self.loading_changed.emit(False)
     
     def _populate_entries(self, parent_item, entries):
         if parent_item.childCount() == 1 and parent_item.child(0).text(0) == "Loading...":
@@ -350,8 +321,11 @@ class SidebarNavigationWidget(QWidget):
         if not entries:
             return
         
-        for entry in entries:
-            try:
+        total_entries = len(entries)
+        display_entries = entries[:self.MAX_ITEMS_PER_FOLDER] if total_entries > self.MAX_ITEMS_PER_FOLDER else entries
+        
+        for entry in display_entries:
+            if entry.exists():
                 item = QTreeWidgetItem(parent_item)
                 item.setText(0, entry.name)
                 item.setData(0, Qt.UserRole, str(entry))
@@ -360,12 +334,15 @@ class SidebarNavigationWidget(QWidget):
                     dir_name = entry.name.lower()
                     dir_cat = self.FOLDER_TO_CATEGORY.get(dir_name, 'folder')
                     item.setIcon(0, self._get_icon("fa6s.folder", dir_cat))
-                    try:
-                        if any(entry.iterdir()):
+                    if entry.is_dir():
+                        has_children = False
+                        child_iter = entry.iterdir()
+                        first_child = next(child_iter, None)
+                        if first_child:
+                            has_children = True
+                        if has_children:
                             dummy = QTreeWidgetItem(item)
                             dummy.setText(0, "Loading...")
-                    except (PermissionError, OSError):
-                        pass
                 else:
                     suffix = entry.suffix.lower()
                     if suffix in [".py", ".js", ".ts", ".java", ".cpp", ".c", ".cs", ".go", ".rs"]:
@@ -388,12 +365,66 @@ class SidebarNavigationWidget(QWidget):
                         item.setIcon(0, self._get_icon("fa6s.file-word", "file"))
                     else:
                         item.setIcon(0, self._get_icon("fa6s.file", "file"))
-            except (PermissionError, OSError):
-                continue
+        
+        if total_entries > self.MAX_ITEMS_PER_FOLDER:
+            remaining = total_entries - self.MAX_ITEMS_PER_FOLDER
+            more_item = QTreeWidgetItem(parent_item)
+            more_item.setText(0, f"and {remaining} more files...")
+            more_item.setIcon(0, self._get_icon("fa6s.ellipsis", "file"))
+            more_item.setData(0, Qt.UserRole, None)
+            more_item.setDisabled(True)
     
     def refresh_tree(self):
-        self.populate_tree()
+        current_item = self.tree.currentItem()
+        
+        def refresh_expanded_items(item):
+            if item is None:
+                root = self.tree.invisibleRootItem()
+                for i in range(root.childCount()):
+                    refresh_expanded_items(root.child(i))
+                return
+            
+            if item.isExpanded():
+                path = item.data(0, Qt.UserRole)
+                if path and path != "network://":
+                    if item.childCount() == 1 and item.child(0).text(0) == "Loading...":
+                        return
+                    while item.childCount() > 0:
+                        item.removeChild(item.child(0))
+                    dummy = QTreeWidgetItem(item)
+                    dummy.setText(0, "Loading...")
+                    self._load_directory_async(item, path)
+                
+                for i in range(item.childCount()):
+                    refresh_expanded_items(item.child(i))
+        
+        refresh_expanded_items(None)
+        
+        if current_item:
+            self.tree.scrollToItem(current_item, QTreeWidget.PositionAtTop)
+        
         self._show_status('Refreshed', 1500)
+    
+    def collapse_tree(self):
+        root = self.tree.invisibleRootItem()
+        for i in range(root.childCount()):
+            item = root.child(i)
+            item_text = item.text(0)
+            if item_text in ("System", "Volumes"):
+                item.setExpanded(True)
+                for j in range(item.childCount()):
+                    child = item.child(j)
+                    self._collapse_recursive(child)
+            else:
+                self._collapse_recursive(item)
+        self._show_status('Tree collapsed', 1500)
+    
+    def _collapse_recursive(self, item):
+        if item is None:
+            return
+        item.setExpanded(False)
+        for i in range(item.childCount()):
+            self._collapse_recursive(item.child(i))
 
     def _show_status(self, text: str, timeout: int = 0):
         try:
@@ -413,11 +444,9 @@ class SidebarNavigationWidget(QWidget):
     def on_item_clicked(self, item, column):
         path = item.data(0, Qt.UserRole)
         if path and path != "network://":
-            self.path_input.setText(path)
             self.path_selected.emit(path)
     
-    def navigate_to_path(self):
-        path_text = self.path_input.text().strip()
+    def navigate_to_path(self, path_text):
         if not path_text:
             return
 
@@ -433,14 +462,16 @@ class SidebarNavigationWidget(QWidget):
         if path.is_file():
             path = path.parent
 
-        self.path_input.setText(str(path))
         self.path_selected.emit(str(path))
 
-        # If initialization not done, start it and expand after init finishes
         if not self.is_initialized:
             def _delayed_expand():
                 time.sleep(0.05)
-                self._expand_to_path(path)
+                result = self._expand_to_path(path)
+                if result:
+                    current = self.tree.currentItem()
+                    if current:
+                        self.tree.scrollToItem(current, QTreeWidget.PositionAtTop)
             self.start_initialization()
             if self.init_thread:
                 self.init_thread.finished.connect(_delayed_expand)
@@ -448,25 +479,11 @@ class SidebarNavigationWidget(QWidget):
                 _delayed_expand()
             return
 
-        self._expand_to_path(path)
-    
-    def paste_from_clipboard(self):
-        clipboard = QApplication.clipboard()
-        text = clipboard.text().strip()
-        if not text:
-            return
-        if (text.startswith('"') and text.endswith('"')) or (text.startswith("'") and text.endswith("'")):
-            text = text[1:-1]
-        self.path_input.setText(text)
-        self.navigate_to_path()
-    
-    def eventFilter(self, obj, event):
-        if obj is self.path_input and event.type() == QEvent.KeyPress:
-            key = event.key()
-            if key == Qt.Key_Right:
-                self.navigate_to_path()
-                return True
-        return super().eventFilter(obj, event)
+        result = self._expand_to_path(path)
+        if result:
+            current = self.tree.currentItem()
+            if current:
+                self.tree.scrollToItem(current, QTreeWidget.PositionAtTop)
 
     def _expand_to_path(self, target_path):
         target_str = os.path.normpath(str(target_path)).lower()
