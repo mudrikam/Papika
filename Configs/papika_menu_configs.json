@@ -25,6 +25,12 @@
         {"label": "Telegram", "icon": "fa6b.telegram", "role": "telegram"},
         {"label": "Repository", "icon": "fa6b.github", "role": "repo"}
       ]
+    },
+    {
+      "title": "Relaunch",
+      "icon": "fa6s.rotate-right",
+      "direct_action": true,
+      "role": "relaunch"
     }
   ]
 }
