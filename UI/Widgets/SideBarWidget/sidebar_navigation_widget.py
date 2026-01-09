@@ -6,6 +6,7 @@ from PySide6.QtCore import Qt, QDir, QThread, Signal
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QTreeWidget, QTreeWidgetItem, QApplication, QMessageBox
 import qtawesome as qta
 from UI.Widgets.SideBarWidget.sidebar_navigation_widget_context_menu import SidebarNavigationContextMenu
+from UI.Themes.papika_global_themes import PAPIKA_THEME
 
 class DirectoryScanThread(QThread):
     finished = Signal(list)
@@ -103,10 +104,11 @@ class SidebarNavigationWidget(QWidget):
         self.base_path = base_path
         if isinstance(color_map, dict):
             self.COLOR_MAP.update(color_map)
+        self.spacing = PAPIKA_THEME.get_spacing()
         
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(4)
+        layout.setContentsMargins(*self.spacing['margins_none'])
+        layout.setSpacing(self.spacing['spacing_small'])
         
         self.tree = QTreeWidget()
         self.tree.setHeaderHidden(True)

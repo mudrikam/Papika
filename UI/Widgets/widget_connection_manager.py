@@ -10,13 +10,14 @@ class WidgetConnectionManager(QObject):
         self.nav_toolbar = None
         self.action_toolbar = None
 
-    def setup(self, window, sidebar, nav_toolbar=None, action_toolbar=None, search_toolbar=None, settings_toolbar=None):
+    def setup(self, window, sidebar, nav_toolbar=None, action_toolbar=None, search_toolbar=None, settings_toolbar=None, sorting_toolbar=None):
         self.window = window
         self.sidebar = sidebar
         self.nav_toolbar = nav_toolbar
         self.action_toolbar = action_toolbar
         self.search_toolbar = search_toolbar
         self.settings_toolbar = settings_toolbar
+        self.sorting_toolbar = sorting_toolbar
         self.central_manager = None
 
         central = sidebar.content if hasattr(sidebar, 'content') else None
@@ -56,6 +57,17 @@ class WidgetConnectionManager(QObject):
         if settings_toolbar:
             settings_toolbar.reload_requested.connect(lambda: self._show_status('Settings reloaded', 1500))
 
+        if sorting_toolbar and hasattr(sidebar, 'sorting_widget'):
+            sorting_toolbar.sort_requested.connect(lambda order: self._show_status(f"Sort {order}", 1500))
+            sorting_toolbar.filter_requested.connect(lambda: self._show_status('Filter', 1500))
+            sorting_toolbar.group_requested.connect(lambda: self._show_status('Group', 1500))
+
+        if search_toolbar:
+            search_toolbar.search_requested.connect(lambda q: self._show_status(f"Search: {q}", 1500))
+
+        if settings_toolbar:
+            settings_toolbar.reload_requested.connect(lambda: self._show_status('Settings reloaded', 1500))
+
         sidebar.active_tab_changed.connect(self._on_tab_changed)
         self._on_tab_changed(sidebar._active_tab)
 
@@ -68,7 +80,8 @@ class WidgetConnectionManager(QObject):
             self.search_toolbar.setVisible(tab_name == 'search')
         if hasattr(self, 'settings_toolbar') and self.settings_toolbar:
             self.settings_toolbar.setVisible(tab_name == 'settings')
-        # set play icon color via sidebar (sidebar handles this), ensure status reflects change
+        if hasattr(self, 'sorting_toolbar') and self.sorting_toolbar:
+            self.sorting_toolbar.setVisible(tab_name == 'sorting')
         self._show_status(f"Active tab: {tab_name}", 400)
         if tab_name in ('files', 'search') and self.nav_toolbar and self.central_manager:
             q = self.nav_toolbar.search_field.text().strip()

@@ -3,6 +3,7 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QFrame, QProgressBar
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtGui import QFontMetrics
 import qtawesome as qta
+from UI.Themes.papika_global_themes import PAPIKA_THEME
 
 
 class PathAnalyzerThread(QThread):
@@ -51,10 +52,11 @@ class SidebarNavigationDetailsWidget(QWidget):
         super().__init__(parent)
         self.current_path = None
         self.analyzer_thread = None
+        self.spacing = PAPIKA_THEME.get_spacing()
         
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(4)
+        layout.setContentsMargins(*self.spacing['margins_medium'])
+        layout.setSpacing(self.spacing['spacing_small'])
         
         self.path_label = QLabel("No path selected")
         self.path_label.setWordWrap(False)
@@ -65,7 +67,7 @@ class SidebarNavigationDetailsWidget(QWidget):
         self.progress_bar.setMaximum(0)
         self.progress_bar.setMinimum(0)
         self.progress_bar.setTextVisible(False)
-        self.progress_bar.setFixedHeight(4)
+        self.progress_bar.setFixedHeight(PAPIKA_THEME.get_sizes()['progress_bar_height'])
         self.progress_bar.setVisible(False)
         layout.addWidget(self.progress_bar)
         

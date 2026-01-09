@@ -3,6 +3,7 @@ from PySide6.QtWidgets import QToolBar, QLineEdit, QComboBox, QSizePolicy, QAppl
 from PySide6.QtGui import QAction, QPalette
 from PySide6.QtCore import Qt, Signal, QTimer
 import qtawesome as qta
+from UI.Themes.papika_global_themes import PAPIKA_THEME
 
 
 class NavigationToolbarWidget(QToolBar):
@@ -23,32 +24,33 @@ class NavigationToolbarWidget(QToolBar):
         self.history = []
         self.history_index = -1
         self._current_view = 'grid'
-        self._determine_theme_colors()
+        self.colors = PAPIKA_THEME.get_colors()
+        self.sizes = PAPIKA_THEME.get_sizes()
         self._create_actions()
         self._set_view_mode(self._current_view)
 
     def _create_actions(self):
-        back_icon = qta.icon('fa6s.arrow-left', color=self._inactive_color)
+        back_icon = qta.icon('fa6s.arrow-left', color=self.colors['icon_inactive'])
         self.back_action = QAction(back_icon, 'Back', self)
         self.back_action.setToolTip('Back')
         self.back_action.triggered.connect(self._on_back)
         self.back_action.setEnabled(False)
         self.addAction(self.back_action)
 
-        forward_icon = qta.icon('fa6s.arrow-right', color=self._inactive_color)
+        forward_icon = qta.icon('fa6s.arrow-right', color=self.colors['icon_inactive'])
         self.forward_action = QAction(forward_icon, 'Forward', self)
         self.forward_action.setToolTip('Forward')
         self.forward_action.triggered.connect(self._on_forward)
         self.forward_action.setEnabled(False)
         self.addAction(self.forward_action)
 
-        up_icon = qta.icon('fa6s.arrow-up', color=self._active_color)
+        up_icon = qta.icon('fa6s.arrow-up', color=self.colors['primary'])
         self.up_action = QAction(up_icon, 'Up', self)
         self.up_action.setToolTip('Up')
         self.up_action.triggered.connect(self._on_up)
         self.addAction(self.up_action)
 
-        refresh_icon = qta.icon('fa6s.rotate', color=self._active_color)
+        refresh_icon = qta.icon('fa6s.rotate', color=self.colors['primary'])
         self.refresh_action = QAction(refresh_icon, 'Refresh', self)
         self.refresh_action.setToolTip('Refresh')
         self.refresh_action.triggered.connect(self._refresh)
@@ -56,7 +58,7 @@ class NavigationToolbarWidget(QToolBar):
 
         self.addSeparator()
 
-        control_height = 28
+        control_height = self.sizes['control_height']
 
         self.path_display = QLineEdit(self)
         self.path_display.setReadOnly(False)
@@ -69,13 +71,13 @@ class NavigationToolbarWidget(QToolBar):
         self.path_display.returnPressed.connect(self._on_path_entered)
         self.addWidget(self.path_display)
 
-        paste_icon = qta.icon('fa6s.clipboard', color=self._active_color)
+        paste_icon = qta.icon('fa6s.clipboard', color=self.colors['primary'])
         self.paste_action = QAction(paste_icon, 'Paste', self)
         self.paste_action.setToolTip('Paste from clipboard')
         self.paste_action.triggered.connect(self._on_paste)
         self.addAction(self.paste_action)
 
-        clear_icon = qta.icon('fa6s.xmark', color=self._active_color)
+        clear_icon = qta.icon('fa6s.xmark', color=self.colors['primary'])
         self.clear_action = QAction(clear_icon, 'Clear', self)
         self.clear_action.setToolTip('Clear path')
         self.clear_action.triggered.connect(self._on_clear)
@@ -117,19 +119,19 @@ class NavigationToolbarWidget(QToolBar):
 
         self.addSeparator()
 
-        list_view_icon = qta.icon('fa6s.list', color=self._active_color)
+        list_view_icon = qta.icon('fa6s.list', color=self.colors['primary'])
         self.list_view_action = QAction(list_view_icon, 'List View', self)
         self.list_view_action.setToolTip('List View')
         self.list_view_action.triggered.connect(lambda: self._set_view_mode('list'))
         self.addAction(self.list_view_action)
 
-        grid_view_icon = qta.icon('fa6s.table-cells-large', color=self._inactive_color)
+        grid_view_icon = qta.icon('fa6s.table-cells-large', color=self.colors['icon_inactive'])
         self.grid_view_action = QAction(grid_view_icon, 'Grid View', self)
         self.grid_view_action.setToolTip('Grid View')
         self.grid_view_action.triggered.connect(lambda: self._set_view_mode('grid'))
         self.addAction(self.grid_view_action)
 
-        detail_view_icon = qta.icon('fa6s.table-list', color=self._inactive_color)
+        detail_view_icon = qta.icon('fa6s.table-list', color=self.colors['icon_inactive'])
         self.detail_view_action = QAction(detail_view_icon, 'Detail View', self)
         self.detail_view_action.setToolTip('Detail View')
         self.detail_view_action.triggered.connect(lambda: self._set_view_mode('details'))
@@ -234,38 +236,23 @@ class NavigationToolbarWidget(QToolBar):
         forward_enabled = self.history_index < len(self.history) - 1
         self.back_action.setEnabled(back_enabled)
         self.forward_action.setEnabled(forward_enabled)
-        self.back_action.setIcon(qta.icon('fa6s.arrow-left', color=self._active_color if back_enabled else self._inactive_color))
-        self.forward_action.setIcon(qta.icon('fa6s.arrow-right', color=self._active_color if forward_enabled else self._inactive_color))
-        self.paste_action.setIcon(qta.icon('fa6s.clipboard', color=self._active_color if self.paste_action.isEnabled() else self._inactive_color))
-        self.clear_action.setIcon(qta.icon('fa6s.xmark', color=self._active_color if self.clear_action.isEnabled() else self._inactive_color))
+        self.back_action.setIcon(qta.icon('fa6s.arrow-left', color=self.colors['primary'] if back_enabled else self.colors['icon_inactive']))
+        self.forward_action.setIcon(qta.icon('fa6s.arrow-right', color=self.colors['primary'] if forward_enabled else self.colors['icon_inactive']))
+        self.paste_action.setIcon(qta.icon('fa6s.clipboard', color=self.colors['primary'] if self.paste_action.isEnabled() else self.colors['icon_inactive']))
+        self.clear_action.setIcon(qta.icon('fa6s.xmark', color=self.colors['primary'] if self.clear_action.isEnabled() else self.colors['icon_inactive']))
     
     def _set_view_mode(self, mode):
         self._current_view = mode
         
         self.list_view_action.setIcon(qta.icon('fa6s.list', 
-            color=self._active_color if mode == 'list' else self._inactive_color))
+            color=self.colors['primary'] if mode == 'list' else self.colors['icon_inactive']))
         self.grid_view_action.setIcon(qta.icon('fa6s.table-cells-large', 
-            color=self._active_color if mode == 'grid' else self._inactive_color))
+            color=self.colors['primary'] if mode == 'grid' else self.colors['icon_inactive']))
         self.detail_view_action.setIcon(qta.icon('fa6s.table-list', 
-            color=self._active_color if mode == 'details' else self._inactive_color))
+            color=self.colors['primary'] if mode == 'details' else self.colors['icon_inactive']))
         
         self.view_mode_changed.emit(mode)
         self._show_status(f'{mode.capitalize()} View', 1500)
-
-    def _determine_theme_colors(self):
-        app = QApplication.instance()
-        dark = True
-        if app:
-            wc = app.palette().color(QPalette.Window)
-            lum = 0.299 * wc.red() + 0.587 * wc.green() + 0.114 * wc.blue()
-            dark = lum < 128
-        if dark:
-            self._base_icon_color = '#FFFFFF'
-            self._inactive_color = '#9CA3AF'
-        else:
-            self._base_icon_color = '#000000'
-            self._inactive_color = '#6B7280'
-        self._active_color = '#f7a128'
     
     def update_extensions(self, extensions):
         current = self.sort_combo.currentText()

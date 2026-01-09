@@ -68,6 +68,7 @@ def apply_window_metadata(window, base_path: Path):
     action_toolbar = ActionToolbarWidget(base_path, parent=window)
     search_toolbar = None
     settings_toolbar = None
+    sorting_toolbar = None
 
     sidebar = Sidebar(base_path, parent=window)
 
@@ -85,23 +86,25 @@ def apply_window_metadata(window, base_path: Path):
     # instantiate optional toolbars (kept separate in case of missing Qt availability)
     from UI.Widgets.ToolBarWidget.search_toolbar_widget import SearchToolbarWidget
     from UI.Widgets.ToolBarWidget.settings_toolbar_widget import SettingsToolbarWidget
+    from UI.Widgets.ToolBarWidget.sorting_toolbar_widget import SortingToolbarWidget
     search_toolbar = SearchToolbarWidget(base_path, parent=window)
     settings_toolbar = SettingsToolbarWidget(base_path, parent=window)
+    sorting_toolbar = SortingToolbarWidget(base_path, parent=window)
 
-    # add all toolbars (hidden by default); manager will control visibility
     window.addToolBar(nav_toolbar)
     window.addToolBar(action_toolbar)
     window.addToolBar(search_toolbar)
     window.addToolBar(settings_toolbar)
+    window.addToolBar(sorting_toolbar)
     nav_toolbar.setVisible(False)
     action_toolbar.setVisible(False)
     search_toolbar.setVisible(False)
     settings_toolbar.setVisible(False)
+    sorting_toolbar.setVisible(False)
 
-    # centralize connections in a manager
     from UI.Widgets.widget_connection_manager import WidgetConnectionManager
     manager = WidgetConnectionManager(parent=window)
-    manager.setup(window, sidebar, nav_toolbar=nav_toolbar, action_toolbar=action_toolbar, search_toolbar=search_toolbar, settings_toolbar=settings_toolbar)
+    manager.setup(window, sidebar, nav_toolbar=nav_toolbar, action_toolbar=action_toolbar, search_toolbar=search_toolbar, settings_toolbar=settings_toolbar, sorting_toolbar=sorting_toolbar)
 
     return sidebar
 

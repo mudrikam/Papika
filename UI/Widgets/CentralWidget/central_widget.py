@@ -1,6 +1,7 @@
 from pathlib import Path
 from PySide6.QtWidgets import QWidget, QVBoxLayout
 from UI.Widgets.CentralWidget.central_widget_manager import CentralWidgetManager
+from UI.Themes.papika_global_themes import PAPIKA_THEME
 
 
 class CentralWidget(QWidget):
@@ -9,8 +10,9 @@ class CentralWidget(QWidget):
         self.setObjectName("central_widget")
         self.base_path = base_path
         
+        spacing = PAPIKA_THEME.get_spacing()
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(*spacing['margins_none'])
         layout.setSpacing(0)
         
         self.manager = CentralWidgetManager(base_path, parent=self)

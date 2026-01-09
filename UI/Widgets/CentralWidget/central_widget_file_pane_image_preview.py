@@ -2,6 +2,7 @@ from PySide6.QtCore import Qt, Signal, QEvent
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout
 from PySide6.QtGui import QPixmap
 from pathlib import Path
+from UI.Themes.papika_global_themes import PAPIKA_THEME
 
 
 class ClickableLabel(QLabel):
@@ -21,8 +22,9 @@ class ImagePreviewOverlay(QWidget):
         self.setAttribute(Qt.WA_StyledBackground, True)
         self.setStyleSheet('background-color: rgba(0, 0, 0, 180);')
 
+        spacing = PAPIKA_THEME.get_spacing()
         self._layout = QVBoxLayout(self)
-        self._layout.setContentsMargins(20, 20, 20, 20)
+        self._layout.setContentsMargins(*spacing['margins_custom_20'])
         self._layout.setSpacing(0)
 
         self.image_label = QLabel(self)

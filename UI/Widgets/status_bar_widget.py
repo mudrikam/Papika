@@ -1,4 +1,5 @@
 from PySide6.QtWidgets import QStatusBar, QLabel
+from UI.Themes.papika_global_themes import PAPIKA_THEME
 
 class StatusBar(QStatusBar):
     def __init__(self, cfg: dict, development: bool):

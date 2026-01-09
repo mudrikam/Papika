@@ -7,6 +7,7 @@ import qtawesome as qta
 
 from PapikaCore.papika_directory_operations import is_scan_required
 from PapikaCore.papika_initiate_directory_scan import scan_directory
+from UI.Themes.papika_global_themes import PAPIKA_THEME
 
 class SidebarActionWidget(QWidget):
     scan_completed = Signal(dict)
@@ -15,9 +16,11 @@ class SidebarActionWidget(QWidget):
         super().__init__(parent)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
         self.current_directory = None
+        self.sizes = PAPIKA_THEME.get_sizes()
+        self.spacing = PAPIKA_THEME.get_spacing()
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(6)
+        layout.setContentsMargins(*self.spacing['margins_medium'])
+        layout.setSpacing(self.spacing['spacing_medium'])
         
         label = QLabel('Step 1 Scan Directory')
         label.setAlignment(Qt.AlignLeft)
@@ -26,7 +29,7 @@ class SidebarActionWidget(QWidget):
         self.scan_directory_button.setObjectName('scan_directory_button')
         self.scan_directory_button.setIcon(qta.icon('fa6s.folder-open'))
         self.scan_directory_button.setCursor(Qt.PointingHandCursor)
-        self.scan_directory_button.setFixedHeight(36)
+        self.scan_directory_button.setFixedHeight(self.sizes['button_height'])
         self.scan_directory_button.clicked.connect(self._on_scan_directory_clicked)
         layout.addWidget(self.scan_directory_button)
         
@@ -37,7 +40,7 @@ class SidebarActionWidget(QWidget):
         generate_embedding_button.setObjectName('generate_embedding_button')
         generate_embedding_button.setIcon(qta.icon('fa6s.wand-magic-sparkles'))
         generate_embedding_button.setCursor(Qt.PointingHandCursor)
-        generate_embedding_button.setFixedHeight(36)
+        generate_embedding_button.setFixedHeight(self.sizes['button_height'])
         layout.addWidget(generate_embedding_button)
 
         label3 = QLabel('Step 3 Generate Image Caption')
@@ -47,7 +50,7 @@ class SidebarActionWidget(QWidget):
         generate_caption_button.setObjectName('generate_caption_button')
         generate_caption_button.setIcon(qta.icon('fa6s.image'))
         generate_caption_button.setCursor(Qt.PointingHandCursor)
-        generate_caption_button.setFixedHeight(36)
+        generate_caption_button.setFixedHeight(self.sizes['button_height'])
         layout.addWidget(generate_caption_button)
 
         label4 = QLabel('Step 4 Generate Image Hash')
@@ -57,7 +60,7 @@ class SidebarActionWidget(QWidget):
         generate_hash_button.setObjectName('generate_hash_button')
         generate_hash_button.setIcon(qta.icon('fa6s.hashtag'))
         generate_hash_button.setCursor(Qt.PointingHandCursor)
-        generate_hash_button.setFixedHeight(36)
+        generate_hash_button.setFixedHeight(self.sizes['button_height'])
         layout.addWidget(generate_hash_button)
         layout.addStretch()
     

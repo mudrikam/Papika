@@ -6,6 +6,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QFrame, QLabel, QVBoxLayout, QWidget
 
 from Configs.configs_file_manager import load_config
+from UI.Themes.papika_global_themes import PAPIKA_THEME
 
 
 class SidebarActionDetailsWidget(QWidget):
@@ -13,10 +14,11 @@ class SidebarActionDetailsWidget(QWidget):
         super().__init__(parent)
         self.current_directory = None
         self.previous_directory = None
+        self.spacing = PAPIKA_THEME.get_spacing()
         
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
+        layout.setContentsMargins(*self.spacing['margins_medium'])
+        layout.setSpacing(self.spacing['spacing_large'])
         
         title_label = QLabel('Directory Scan Information')
         title_label.setObjectName('action_details_title')

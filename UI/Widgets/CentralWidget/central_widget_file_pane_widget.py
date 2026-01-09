@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QListWidget, QListWidgetIte
 from PySide6.QtGui import QPixmap, QIcon, QColor, QBrush
 import qtawesome as qta
 from UI.Widgets.CentralWidget.central_widget_file_pane_image_preview import ClickableLabel, ImagePreviewOverlay
+from UI.Themes.papika_global_themes import PAPIKA_THEME
 
 
 class ImageLoaderThread(QThread):
@@ -84,9 +85,11 @@ class CentralWidgetFilePaneWidget(QWidget):
         self.resize_timer = QTimer()
         self.resize_timer.setSingleShot(True)
         self.resize_timer.timeout.connect(self._on_resize_complete)
+        self.spacing = PAPIKA_THEME.get_spacing()
+        self.colors = PAPIKA_THEME.get_colors()
         
         self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.layout.setContentsMargins(*self.spacing['margins_none'])
         self.layout.setSpacing(0)
         
         self.list_view = QListWidget()
@@ -99,13 +102,13 @@ class CentralWidgetFilePaneWidget(QWidget):
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.verticalScrollBar().valueChanged.connect(self._on_grid_scroll)
         self.grid_container = QWidget()
-        self._grid_gap = 1
+        self._grid_gap = self.spacing['spacing_small'] - 4
         self.grid_layout = QGridLayout(self.grid_container)
         self.grid_layout.setSpacing(self._grid_gap)
         self.grid_layout.setHorizontalSpacing(self._grid_gap)
         self.grid_layout.setVerticalSpacing(self._grid_gap)
-        self.grid_layout.setContentsMargins(self._grid_gap, self._grid_gap, self._grid_gap, self._grid_gap)
-        self._grid_border_reserve = 1
+        self.grid_layout.setContentsMargins(*[self._grid_gap]*4)
+        self._grid_border_reserve = self.spacing['spacing_small'] - 4
         self.scroll_area.setWidget(self.grid_container)
         self.scroll_area.setVisible(False)
         self.layout.addWidget(self.scroll_area)
@@ -199,7 +202,7 @@ class CentralWidgetFilePaneWidget(QWidget):
             return
         
         self.is_loading_chunk = True
-        placeholder_icon = qta.icon('fa6s.image', color='#f7a128')
+        placeholder_icon = qta.icon('fa6s.image', color=self.colors['primary'])
         
         end_index = min(self.loaded_count + self.chunk_size, len(self.images))
         
@@ -312,7 +315,7 @@ class CentralWidgetFilePaneWidget(QWidget):
                 self.visible_items.add(img_path_str)
             else:
                 icon_size = max(16, min(64, content_size - 8))
-                placeholder_icon = qta.icon('fa6s.image', color='#f7a128')
+                placeholder_icon = qta.icon('fa6s.image', color=self.colors['primary'])
                 placeholder_pixmap = placeholder_icon.pixmap(QSize(icon_size, icon_size))
                 img_label.setPixmap(placeholder_pixmap)
 
@@ -369,17 +372,19 @@ class CentralWidgetFilePaneWidget(QWidget):
                 self.load_timer.start(10)
 
     def _grid_item_baseline(self):
-        return "QLabel { border: 0px solid transparent; padding: 1px; border-radius: 4px; } QLabel:hover { border: 2px solid #f7a128; padding: 1px; border-radius: 4px; }"
+        border_color = self.colors['primary']
+        return f"QLabel {{ border: 0px solid transparent; padding: 1px; border-radius: 4px; }} QLabel:hover {{ border: 2px solid {border_color}; padding: 1px; border-radius: 4px; }}"
 
     def _apply_grid_item_baseline(self, widget):
         widget.setAttribute(Qt.WA_Hover, True)
-        widget.setContentsMargins(1, 1, 1, 1)
+        widget.setContentsMargins(*self.spacing['margins_custom_1'])
         widget.setStyleSheet(self._grid_item_baseline())
 
     def _apply_grid_item_highlight(self, widget):
         widget.setAttribute(Qt.WA_Hover, True)
-        widget.setContentsMargins(1, 1, 1, 1)
-        widget.setStyleSheet("QLabel { border: 2px solid #f7a128; padding: 1px; border-radius: 4px; } QLabel:hover { border: 2px solid #f7a128; padding: 1px; border-radius: 4px; }")    
+        widget.setContentsMargins(*self.spacing['margins_custom_1'])
+        border_color = self.colors['primary']
+        widget.setStyleSheet(f"QLabel {{ border: 2px solid {border_color}; padding: 1px; border-radius: 4px; }} QLabel:hover {{ border: 2px solid {border_color}; padding: 1px; border-radius: 4px; }}")    
     def _populate_details_view(self):
         self.table_view.setRowCount(len(self.images))
         for idx, img_path in enumerate(self.images):
