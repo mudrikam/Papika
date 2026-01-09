@@ -57,8 +57,13 @@ def scan_directory(directory_path: Path, base_path: Path):
     detected_images = []
     other_files = []
     
+    footprints_folder_name = configs['database']['directory']
+    
     for file_path in directory_path.rglob('*'):
         try:
+            if footprints_folder_name in file_path.parts:
+                continue
+            
             if file_path.is_file():
                 if file_path.suffix.lower() in image_extensions:
                     detected_images.append(file_path)

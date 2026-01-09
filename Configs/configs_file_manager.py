@@ -29,8 +29,9 @@ def load_env(base_path: Path):
         try:
             with open(env_path, "a", encoding="utf-8") as f:
                 f.write("DEVELOPMENT=False\n")
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Error loading env file '{env_path}': {e}")
+            raise
         result["DEVELOPMENT"] = "False"
 
     return result

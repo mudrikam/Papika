@@ -28,8 +28,13 @@ def is_scan_required(directory_path: Path, base_path: Path) -> bool:
         actual_images = 0
         actual_other = 0
         
+        footprints_folder_name = configs['database']['directory']
+        
         for file_path in directory_path.rglob('*'):
             try:
+                if footprints_folder_name in file_path.parts:
+                    continue
+                
                 if file_path.is_file():
                     if file_path.suffix.lower() in image_extensions:
                         actual_images += 1

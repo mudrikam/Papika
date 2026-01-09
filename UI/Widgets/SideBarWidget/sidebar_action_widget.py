@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QLabel, QPushButton, QVBoxLayout, QWidget, QSizePolicy
+from PySide6.QtWidgets import QLabel, QPushButton, QVBoxLayout, QWidget, QSizePolicy, QMessageBox
 
 import qtawesome as qta
 
@@ -98,13 +98,21 @@ class SidebarActionWidget(QWidget):
     
     def _on_scan_directory_clicked(self):
         if not self.current_directory:
-            print("No directory selected")
+            QMessageBox.warning(self, "No Directory Selected", "Please select a directory to scan.")
             return
         
         directory_path = Path(self.current_directory)
         if not directory_path.exists() or not directory_path.is_dir():
-            print(f"Invalid directory: {self.current_directory}")
+            QMessageBox.warning(self, "Invalid Directory", f"Invalid directory: {self.current_directory}")
             return
+        
+        # Disallow scanning of root drives (e.g., 'Z:/') to avoid accidental wide scans
+        try:
+            if Path(directory_path) == Path(directory_path.anchor):
+                QMessageBox.warning(self, "Invalid Selection", "Scanning a root drive is not allowed. Please select a subfolder.")
+                return
+        except Exception as e:
+            print(f"Error checking root drive for scanning: {e}")
         
         try:
             base_path = Path(__file__).parent.parent.parent.parent

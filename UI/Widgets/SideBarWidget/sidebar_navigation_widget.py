@@ -25,8 +25,8 @@ class DirectoryScanThread(QThread):
             entries = []
             try:
                 entries = sorted(path.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
-            except (PermissionError, OSError):
-                pass
+            except (PermissionError, OSError) as e:
+                print(f"Permission error while scanning {self.path_str}: {e}")
             
             self.finished.emit(entries)
         except Exception as e:

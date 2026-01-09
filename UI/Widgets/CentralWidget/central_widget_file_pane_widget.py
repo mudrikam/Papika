@@ -108,6 +108,7 @@ class CentralWidgetFilePaneWidget(QWidget):
         self.grid_layout.setHorizontalSpacing(self._grid_gap)
         self.grid_layout.setVerticalSpacing(self._grid_gap)
         self.grid_layout.setContentsMargins(*[self._grid_gap]*4)
+        self.grid_layout.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         self._grid_border_reserve = self.spacing['spacing_small'] - 4
         self.scroll_area.setWidget(self.grid_container)
         self.scroll_area.setVisible(False)

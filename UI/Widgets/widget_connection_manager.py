@@ -97,5 +97,5 @@ class WidgetConnectionManager(QObject):
                 sb.show_temporary(text, timeout)
             else:
                 sb.showMessage(text, timeout)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Error disconnecting widget connections: {e}")
