@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QLabel, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QLabel, QPushButton, QVBoxLayout, QWidget, QSizePolicy
 
 import qtawesome as qta
 
@@ -13,6 +13,7 @@ class SidebarActionWidget(QWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
         self.current_directory = None
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)

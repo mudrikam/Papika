@@ -1,9 +1,9 @@
 from pathlib import Path
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QFrame, QSplitter
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QFrame, QSplitter, QSizePolicy
 import qtawesome as qta
 from UI.Widgets.SideBarWidget.sidebar_navigation_widget import SidebarNavigationWidget
-from UI.Widgets.SideBarWidget.sidebar_details_widget import SidebarDetailsWidget
+from UI.Widgets.SideBarWidget.sidebar_navigation_details_widget import SidebarNavigationDetailsWidget
 from UI.Widgets.SideBarWidget.sidebar_action_widget import SidebarActionWidget
 from UI.Widgets.SideBarWidget.sidebar_action_details_widget import SidebarActionDetailsWidget
 
@@ -88,23 +88,27 @@ class Sidebar(QWidget):
         coll_layout.setSpacing(0)
         
         self.navigation = SidebarNavigationWidget(self.base_path)
+        self.navigation.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
         coll_layout.addWidget(self.navigation, 1)
         
-        self.details = SidebarDetailsWidget()
-        self.details.setMinimumHeight(120)
-        self.details.setMaximumHeight(150)
-        coll_layout.addWidget(self.details, 0)
+        self.navigation_details = SidebarNavigationDetailsWidget()
+        self.navigation_details.setMinimumHeight(120)
+        self.navigation_details.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
+        coll_layout.addWidget(self.navigation_details, 0)
         
         self.action_widget = SidebarActionWidget()
         self.action_widget.hide()
-        coll_layout.addWidget(self.action_widget, 0)
+        self.action_widget.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        coll_layout.addWidget(self.action_widget, 1)
         
         self.action_details = SidebarActionDetailsWidget()
         self.action_details.hide()
-        coll_layout.addWidget(self.action_details, 1)
+        self.action_details.setMinimumHeight(120)
+        self.action_details.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
+        coll_layout.addWidget(self.action_details, 0)
         
-        self.navigation.path_selected.connect(self.details.update_path)
-        self.navigation.loading_changed.connect(self.details.show_loading)
+        self.navigation.path_selected.connect(self.navigation_details.update_path)
+        self.navigation.loading_changed.connect(self.navigation_details.show_loading)
         self.navigation.path_selected.connect(self.action_widget.set_current_directory)
         self.navigation.path_selected.connect(self.action_details.set_current_directory)
         self.action_widget.scan_completed.connect(self.action_details.update_from_scan_result)
@@ -139,12 +143,12 @@ class Sidebar(QWidget):
         # show/hide content for tabs
         if tab_name == 'files':
             self.navigation.show()
-            self.details.show()
+            self.navigation_details.show()
             self.action_widget.hide()
             self.action_details.hide()
         elif tab_name == 'play':
             self.navigation.hide()
-            self.details.hide()
+            self.navigation_details.hide()
             self.action_widget.show()
             self.action_details.show()
         else:

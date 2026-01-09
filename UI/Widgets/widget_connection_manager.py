@@ -37,8 +37,8 @@ class WidgetConnectionManager(QObject):
                 nav_toolbar.grid_width_changed.connect(central.manager.set_grid_width)
                 nav_toolbar.search_triggered.connect(lambda q, m=central.manager: m.search(q) if hasattr(m, 'search') else None)
                 central.manager.extensions_found.connect(nav_toolbar.update_extensions)
-                central.manager.loading_changed.connect(sidebar.details.show_loading)
-                central.manager.loaded_count_changed.connect(sidebar.details.update_loaded_count)
+                central.manager.loading_changed.connect(sidebar.navigation_details.show_loading)
+                central.manager.loaded_count_changed.connect(sidebar.navigation_details.update_loaded_count)
 
         if action_toolbar and hasattr(sidebar, 'navigation') and sidebar.navigation:
             nav = sidebar.navigation

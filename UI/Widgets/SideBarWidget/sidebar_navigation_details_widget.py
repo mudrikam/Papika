@@ -46,7 +46,7 @@ class PathAnalyzerThread(QThread):
             self.finished.emit({'folders': 0, 'files': 0, 'total_size': 0})
 
 
-class SidebarDetailsWidget(QWidget):
+class SidebarNavigationDetailsWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.current_path = None
