@@ -5,6 +5,7 @@ import qtawesome as qta
 from UI.Widgets.SideBarWidget.sidebar_navigation_widget import SidebarNavigationWidget
 from UI.Widgets.SideBarWidget.sidebar_details_widget import SidebarDetailsWidget
 from UI.Widgets.SideBarWidget.sidebar_action_widget import SidebarActionWidget
+from UI.Widgets.SideBarWidget.sidebar_action_details_widget import SidebarActionDetailsWidget
 
 class Sidebar(QWidget):
     active_tab_changed = Signal(str)
@@ -93,14 +94,21 @@ class Sidebar(QWidget):
         self.details.setMinimumHeight(120)
         self.details.setMaximumHeight(150)
         coll_layout.addWidget(self.details, 0)
+        
         self.action_widget = SidebarActionWidget()
         self.action_widget.hide()
-        coll_layout.addWidget(self.action_widget, 1)
+        coll_layout.addWidget(self.action_widget, 0)
+        
+        self.action_details = SidebarActionDetailsWidget()
+        self.action_details.hide()
+        coll_layout.addWidget(self.action_details, 1)
         
         self.navigation.path_selected.connect(self.details.update_path)
         self.navigation.loading_changed.connect(self.details.show_loading)
+        self.navigation.path_selected.connect(self.action_widget.set_current_directory)
+        self.navigation.path_selected.connect(self.action_details.set_current_directory)
+        self.action_widget.scan_completed.connect(self.action_details.update_from_scan_result)
 
-        # Active tab state: 'files' | 'search' | 'settings' etc.
         self._active_tab = None
         self.set_active_tab('files')
 
@@ -133,14 +141,17 @@ class Sidebar(QWidget):
             self.navigation.show()
             self.details.show()
             self.action_widget.hide()
+            self.action_details.hide()
         elif tab_name == 'play':
             self.navigation.hide()
             self.details.hide()
             self.action_widget.show()
+            self.action_details.show()
         else:
             self.navigation.hide()
             self.details.hide()
             self.action_widget.hide()
+            self.action_details.hide()
         self.active_tab_changed.emit(tab_name)
     
     def start_navigation_init(self, progress_callback=None):

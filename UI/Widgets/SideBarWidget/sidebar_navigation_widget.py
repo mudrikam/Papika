@@ -3,8 +3,9 @@ import platform
 import time
 from pathlib import Path
 from PySide6.QtCore import Qt, QDir, QThread, Signal
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QTreeWidget, QTreeWidgetItem, QApplication
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QTreeWidget, QTreeWidgetItem, QApplication, QMessageBox
 import qtawesome as qta
+from UI.Widgets.SideBarWidget.sidebar_navigation_widget_context_menu import SidebarNavigationContextMenu
 
 class DirectoryScanThread(QThread):
     finished = Signal(list)
@@ -110,9 +111,15 @@ class SidebarNavigationWidget(QWidget):
         self.tree = QTreeWidget()
         self.tree.setHeaderHidden(True)
         self.tree.setIndentation(15)
+        self.tree.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.tree.customContextMenuRequested.connect(self._show_context_menu)
         self.tree.itemExpanded.connect(self.on_item_expanded)
         self.tree.itemClicked.connect(self.on_item_clicked)
         layout.addWidget(self.tree)
+        
+        self.context_menu_handler = SidebarNavigationContextMenu(self)
+        self.context_menu_handler.remove_footprints_requested.connect(self._handle_remove_footprints)
+        self.context_menu_handler.scan_requested.connect(self._handle_scan_requested)
         
         self.scan_threads = []
         self.init_thread = None
@@ -336,10 +343,14 @@ class SidebarNavigationWidget(QWidget):
                     item.setIcon(0, self._get_icon("fa6s.folder", dir_cat))
                     if entry.is_dir():
                         has_children = False
-                        child_iter = entry.iterdir()
-                        first_child = next(child_iter, None)
-                        if first_child:
-                            has_children = True
+                        try:
+                            child_iter = entry.iterdir()
+                            first_child = next(child_iter, None)
+                            if first_child:
+                                has_children = True
+                        except (PermissionError, OSError) as e:
+                            print(f"Permission denied accessing {entry}: {e}")
+                            has_children = False
                         if has_children:
                             dummy = QTreeWidgetItem(item)
                             dummy.setText(0, "Loading...")
@@ -535,3 +546,63 @@ class SidebarNavigationWidget(QWidget):
             return False
         
         return find_and_expand(None)
+    
+    def _show_context_menu(self, position):
+        item = self.tree.itemAt(position)
+        if not item:
+            return
+        
+        path = item.data(0, Qt.UserRole)
+        if not path or path == "network://":
+            return
+        
+        menu = self.context_menu_handler.create_menu(path, self.tree)
+        menu.exec_(self.tree.viewport().mapToGlobal(position))
+    
+    def _handle_remove_footprints(self, path: str):
+        try:
+            from PapikaCore.papika_directory_operations import remove_footprints
+            
+            directory_path = Path(path)
+            remove_footprints(directory_path, self.base_path)
+            
+            QMessageBox.information(
+                self,
+                "Success",
+                f"Successfully removed Papika's footprints from:\n{path}"
+            )
+        except FileNotFoundError as e:
+            QMessageBox.warning(
+                self,
+                "Not Found",
+                str(e)
+            )
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"Failed to remove footprints:\n{str(e)}"
+            )
+    
+    def _handle_scan_requested(self, path: str):
+        try:
+            # Traverse parents to find Sidebar (which holds action_widget)
+            parent_widget = self.parent()
+            sidebar = None
+            while parent_widget is not None:
+                if hasattr(parent_widget, 'action_widget'):
+                    sidebar = parent_widget
+                    break
+                parent_widget = parent_widget.parent()
+            
+            if sidebar and hasattr(sidebar, 'action_widget'):
+                action_widget = sidebar.action_widget
+                action_widget.set_current_directory(path)
+                action_widget._on_scan_directory_clicked()
+                self._show_status(f"Scanning: {Path(path).name}", 1500)
+            else:
+                # Fallback: select the path so user can scan manually
+                self.path_selected.emit(path)
+        except Exception as e:
+            print(f"Error handling scan request for {path}: {e}")
+
