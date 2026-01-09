@@ -25,7 +25,7 @@ class WidgetConnectionManager(QObject):
         if nav_toolbar and hasattr(sidebar, 'navigation') and sidebar.navigation:
             nav = sidebar.navigation
             nav.path_selected.connect(nav_toolbar.update_path)
-            nav_toolbar.path_changed.connect(lambda path, n=nav: n.navigate_to_path(path) if path else None)
+            nav_toolbar.path_changed.connect(lambda path, n=nav: n.navigate_to_path(path))
             nav_toolbar.path_changed.connect(lambda p, m=central.manager: m.load_path(p) if hasattr(m, 'load_path') else None)
             nav_toolbar.refresh_requested.connect(nav.refresh_tree)
             
@@ -44,7 +44,7 @@ class WidgetConnectionManager(QObject):
         if action_toolbar and hasattr(sidebar, 'navigation') and sidebar.navigation:
             nav = sidebar.navigation
             nav.path_selected.connect(action_toolbar.update_path)
-            action_toolbar.path_changed.connect(lambda path, n=nav: n.navigate_to_path(path) if path else None)
+            action_toolbar.path_changed.connect(lambda path, n=nav: n.navigate_to_path(path))
             action_toolbar.path_changed.connect(lambda p, m=central.manager: m.load_path(p) if hasattr(m, 'load_path') else None)
             action_toolbar.refresh_requested.connect(nav.refresh_tree)
 

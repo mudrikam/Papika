@@ -461,6 +461,8 @@ class SidebarNavigationWidget(QWidget):
     
     def navigate_to_path(self, path_text):
         if not path_text:
+            self.collapse_tree()
+            self.path_selected.emit('')
             return
 
         path = Path(path_text)

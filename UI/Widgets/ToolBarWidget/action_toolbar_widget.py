@@ -152,7 +152,7 @@ class ActionToolbarWidget(QToolBar):
         self.path_display.setText(path)
     
     def update_path(self, path: str, add_to_history: bool = True):
-        if add_to_history:
+        if add_to_history and path:
             if self.history_index < len(self.history) - 1:
                 self.history = self.history[:self.history_index + 1]
             if not self.history or self.history[-1] != path:
