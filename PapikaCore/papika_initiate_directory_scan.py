@@ -6,9 +6,11 @@ import platform
 import subprocess
 import ctypes
 import os
+from PySide6.QtCore import QThread, Signal, QCoreApplication, Qt
 from Configs.configs_file_manager import load_config
 from Data.Database.Manager.database_migration import DatabaseMigration
 from Data.Database.Manager.database_manager import DatabaseManager
+from UI.Dialogs.global_progress_dialog import GlobalProgressDialog
 
 
 def _make_hidden(path: Path):
@@ -34,112 +36,214 @@ def _make_hidden(path: Path):
     return path
 
 
-def scan_directory(directory_path: Path, base_path: Path):
+IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.svg'}
+
+
+class DirectoryScanThread(QThread):
+    progress_updated = Signal(int, int, str, str)
+    scan_completed = Signal(dict)
+    scan_error = Signal(str)
+    
+    def __init__(self, directory_path: Path, base_path: Path, existing_images=None, parent=None):
+        super().__init__(parent)
+        self.directory_path = directory_path
+        self.base_path = base_path
+        self.existing_images = existing_images
+        self._is_cancelled = False
+    
+    def cancel(self):
+        self._is_cancelled = True
+    
+    def run(self):
+        try:
+            trails_data = self._execute_scan()
+            if not self._is_cancelled and trails_data:
+                self.scan_completed.emit(trails_data)
+        except Exception as e:
+            print(f"Error during directory scan: {e}")
+            self.scan_error.emit(str(e))
+    
+    def _execute_scan(self):
+        configs = load_config(self.base_path)
+        footprints_folder_name = configs['database']['directory']
+        
+        footprints_folder = self.directory_path / footprints_folder_name
+        footprints_folder.mkdir(parents=True, exist_ok=True)
+        footprints_folder = _make_hidden(footprints_folder)
+        
+        db_path = footprints_folder / configs['database']['name']
+        
+        migration_dir = self.base_path / 'Data' / 'Database' / 'Migration'
+        db_migration = DatabaseMigration(db_path, migration_dir)
+        db_migration.initialize_database()
+        db_migration.run_migrations()
+        
+        db_manager = DatabaseManager(db_path)
+        db_manager.connect()
+        db_manager.clear_all_images()
+        
+        if self.existing_images is not None:
+            image_files = [Path(img) if isinstance(img, str) else img for img in self.existing_images]
+            total_images = len(image_files)
+            other_count = 0
+            
+            batch_size = 100
+            inserted = 0
+            
+            for i in range(0, total_images, batch_size):
+                if self._is_cancelled:
+                    db_manager.disconnect()
+                    return {}
+                
+                batch_end = min(i + batch_size, total_images)
+                batch = image_files[i:batch_end]
+                
+                batch_data = []
+                for img_path in batch:
+                    try:
+                        stat = img_path.stat()
+                        batch_data.append((
+                            str(img_path),
+                            stat.st_size,
+                            img_path.suffix.lower(),
+                            datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                            datetime.fromtimestamp(stat.st_atime).isoformat()
+                        ))
+                    except (PermissionError, OSError) as e:
+                        print(f"Error accessing {img_path}: {e}")
+                
+                if batch_data:
+                    db_manager.batch_insert_images(batch_data)
+                    inserted += len(batch_data)
+                
+                self.progress_updated.emit(
+                    batch_end,
+                    total_images,
+                    f"Inserting: {batch_end} of {total_images}",
+                    f"{inserted} images inserted"
+                )
+        else:
+            image_files = []
+            other_count = 0
+            
+            for f in self.directory_path.rglob('*'):
+                if self._is_cancelled:
+                    db_manager.disconnect()
+                    return {}
+                
+                if f.is_file() and footprints_folder_name not in f.parts:
+                    if f.suffix.lower() in IMAGE_EXTENSIONS:
+                        image_files.append(f)
+                    else:
+                        other_count += 1
+            
+            total_images = len(image_files)
+            
+            if total_images == 0:
+                db_manager.disconnect()
+                self.progress_updated.emit(1, 1, "No images found", "")
+                return self._create_trails_data(0, other_count, footprints_folder)
+            
+            batch_size = 100
+            inserted = 0
+            
+            for i in range(0, total_images, batch_size):
+                if self._is_cancelled:
+                    db_manager.disconnect()
+                    return {}
+                
+                batch_end = min(i + batch_size, total_images)
+                batch = image_files[i:batch_end]
+                
+                batch_data = []
+                for img_path in batch:
+                    try:
+                        stat = img_path.stat()
+                        batch_data.append((
+                            str(img_path),
+                            stat.st_size,
+                            img_path.suffix.lower(),
+                            datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                            datetime.fromtimestamp(stat.st_atime).isoformat()
+                        ))
+                    except (PermissionError, OSError) as e:
+                        print(f"Error accessing {img_path}: {e}")
+                
+                if batch_data:
+                    db_manager.batch_insert_images(batch_data)
+                    inserted += len(batch_data)
+                
+                self.progress_updated.emit(
+                    batch_end,
+                    total_images,
+                    f"Inserting: {batch_end} of {total_images}",
+                    f"{inserted} images inserted"
+                )
+        
+        db_manager.disconnect()
+        
+        print(f"Scan complete: {inserted} images inserted")
+        
+        return self._create_trails_data(inserted, other_count, footprints_folder)
+    
+    def _create_trails_data(self, image_count, other_count, footprints_folder):
+        folder_hash = hashlib.sha256(str(self.directory_path).encode()).hexdigest()[:16]
+        current_timestamp = datetime.now().isoformat()
+        
+        trails_data = {
+            'path_folder': str(self.directory_path),
+            'folder_session_hash': folder_hash,
+            'files_count': image_count + other_count,
+            'detected_image_files': image_count,
+            'other_files': other_count,
+            'last_scan': current_timestamp,
+            'last_access': current_timestamp
+        }
+        
+        trails_json_path = footprints_folder / 'papika_trails.json'
+        with open(trails_json_path, 'w', encoding='utf-8') as f:
+            json.dump(trails_data, f, indent=2)
+        
+        return trails_data
+
+
+def scan_directory(directory_path: Path, base_path: Path, parent_widget=None, existing_images=None):
     if not directory_path.exists() or not directory_path.is_dir():
         raise ValueError(f"Invalid directory: {directory_path}")
     
-    configs = load_config(base_path)
+    progress_dialog = GlobalProgressDialog(
+        parent=parent_widget,
+        title="Directory Scan",
+        initial_message="Inserting to database..."
+    )
     
-    footprints_folder = directory_path / configs['database']['directory']
-    footprints_folder.mkdir(parents=True, exist_ok=True)
-    footprints_folder = _make_hidden(footprints_folder)
+    scan_thread = DirectoryScanThread(directory_path, base_path, existing_images)
+    scan_result = {}
     
-    db_path = footprints_folder / configs['database']['name']
-    db_exists = db_path.exists()
+    def on_progress_updated(value, maximum, message, detail):
+        progress_dialog.update_progress(value, maximum)
+        progress_dialog.set_message(message)
+        progress_dialog.set_detail(detail)
     
-    migration_dir = base_path / 'Data' / 'Database' / 'Migration'
+    def on_scan_completed(trails_data):
+        nonlocal scan_result
+        scan_result = trails_data
+        progress_dialog.close()
     
-    db_migration = DatabaseMigration(db_path, migration_dir)
-    db_migration.initialize_database()
-    db_migration.run_migrations()
+    def on_scan_error(error_message):
+        print(f"Scan error: {error_message}")
+        progress_dialog.close()
     
-    image_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.svg'}
-    detected_images = []
-    other_files = []
+    def on_cancel_requested():
+        scan_thread.cancel()
+        progress_dialog.close()
     
-    footprints_folder_name = configs['database']['directory']
+    scan_thread.progress_updated.connect(on_progress_updated, Qt.QueuedConnection)
+    scan_thread.scan_completed.connect(on_scan_completed, Qt.QueuedConnection)
+    scan_thread.scan_error.connect(on_scan_error, Qt.QueuedConnection)
+    progress_dialog.cancel_requested.connect(on_cancel_requested, Qt.DirectConnection)
     
-    for file_path in directory_path.rglob('*'):
-        try:
-            if footprints_folder_name in file_path.parts:
-                continue
-            
-            if file_path.is_file():
-                if file_path.suffix.lower() in image_extensions:
-                    detected_images.append(file_path)
-                else:
-                    other_files.append(file_path)
-        except (PermissionError, OSError) as e:
-            print(f"Permission denied accessing {file_path}: {e}")
-            continue
+    scan_thread.start()
+    progress_dialog.exec()
     
-    db_manager = DatabaseManager(db_path)
-    db_manager.connect()
-    
-    current_image_paths = {str(img) for img in detected_images}
-    db_images = db_manager.get_all_images()
-    db_image_paths = {row['images_path']: row['images_id'] for row in db_images}
-    
-    inserted_count = 0
-    updated_count = 0
-    deleted_count = 0
-    
-    for db_path_str, db_image_id in list(db_image_paths.items()):
-        if db_path_str not in current_image_paths:
-            db_manager.delete_image(db_image_id)
-            deleted_count += 1
-            print(f"Deleted missing image from DB: {db_path_str}")
-    
-    for image_path in detected_images:
-        try:
-            stat = image_path.stat()
-            size = stat.st_size
-            extension = image_path.suffix.lower()
-            modified_at = datetime.fromtimestamp(stat.st_mtime).isoformat()
-            accessed_at = datetime.fromtimestamp(stat.st_atime).isoformat()
-            
-            image_path_str = str(image_path)
-            existing = db_manager.get_image_by_path(image_path_str)
-            
-            if existing:
-                if (existing['images_size'] != size or 
-                    existing['images_modified_at'] != modified_at):
-                    db_manager.update_image(existing['images_id'], size, modified_at, accessed_at)
-                    updated_count += 1
-            else:
-                db_manager.insert_image(image_path_str, size, extension, modified_at, accessed_at)
-                inserted_count += 1
-        except Exception as e:
-            print(f"Error processing image {image_path}: {e}")
-    
-    db_manager.disconnect()
-    
-    print(f"Database sync: {inserted_count} inserted, {updated_count} updated, {deleted_count} deleted")
-    
-    folder_hash = hashlib.sha256(str(directory_path).encode()).hexdigest()[:16]
-    current_timestamp = datetime.now().isoformat()
-    
-    trails_data = {
-        'path_folder': str(directory_path),
-        'folder_session_hash': folder_hash,
-        'files_count': len(detected_images) + len(other_files),
-        'detected_image_files': len(detected_images),
-        'other_files': len(other_files),
-        'last_scan': current_timestamp,
-        'last_access': current_timestamp
-    }
-    
-    trails_json_path = footprints_folder / 'papika_trails.json'
-    with open(trails_json_path, 'w', encoding='utf-8') as f:
-        json.dump(trails_data, f, indent=2)
-    
-    if db_exists:
-        print(f"Database updated at: {db_path}")
-        print(f"Trails JSON updated at: {trails_json_path}")
-    else:
-        print(f"Database created at: {db_path}")
-        print(f"Trails JSON created at: {trails_json_path}")
-    
-    print(f"Found {len(detected_images)} images and {len(other_files)} other files")
-    
-    return trails_data
+    return scan_result

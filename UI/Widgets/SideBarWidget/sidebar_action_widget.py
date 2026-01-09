@@ -116,7 +116,21 @@ class SidebarActionWidget(QWidget):
         
         try:
             base_path = Path(__file__).parent.parent.parent.parent
-            trails_data = scan_directory(directory_path, base_path)
+            
+            existing_images = None
+            try:
+                sidebar = self.parent()
+                if sidebar and hasattr(sidebar, 'content'):
+                    central = sidebar.content
+                    if central and hasattr(central, 'manager') and hasattr(central.manager, 'file_pane'):
+                        file_pane = central.manager.file_pane
+                        if hasattr(file_pane, 'images') and file_pane.images:
+                            existing_images = file_pane.images
+                            print(f"Using existing image list: {len(existing_images)} images")
+            except Exception as e:
+                print(f"Could not get existing images: {e}")
+            
+            trails_data = scan_directory(directory_path, base_path, self.window(), existing_images)
             self.scan_completed.emit(trails_data)
             
             from PySide6.QtCore import QTimer

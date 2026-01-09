@@ -49,6 +49,19 @@ class DatabaseManager:
         cursor = self.execute_query(query, (image_path, size, extension, modified_at, accessed_at))
         return cursor.lastrowid
     
+    def batch_insert_images(self, images_data):
+        if not images_data:
+            return 0
+        
+        query = """
+            INSERT INTO images (images_path, images_size, images_extension, images_modified_at, images_accessed_at)
+            VALUES (?, ?, ?, ?, ?)
+        """
+        cursor = self.conn.cursor()
+        cursor.executemany(query, images_data)
+        self.conn.commit()
+        return len(images_data)
+    
     def get_image_by_path(self, image_path):
         query = "SELECT * FROM images WHERE images_path = ?"
         return self.fetch_one(query, (image_path,))
@@ -83,6 +96,23 @@ class DatabaseManager:
         params.append(image_id)
         query = f"UPDATE images SET {', '.join(updates)} WHERE images_id = ?"
         self.execute_query(query, params)
+    
+    def batch_update_images(self, updates_data):
+        if not updates_data:
+            return 0
+        
+        query = "UPDATE images SET images_size = ?, images_modified_at = ?, images_accessed_at = ? WHERE images_id = ?"
+        batch_params = [(size, modified_at, accessed_at, image_id) for image_id, size, modified_at, accessed_at in updates_data]
+        
+        cursor = self.conn.cursor()
+        cursor.executemany(query, batch_params)
+        self.conn.commit()
+        
+        return len(updates_data)
+    
+    def clear_all_images(self):
+        query = "DELETE FROM images"
+        self.execute_query(query)
     
     def insert_embedding(self, image_id, vector, model, dimension, device, status='pending', processing_time=None, error=None):
         query = """
