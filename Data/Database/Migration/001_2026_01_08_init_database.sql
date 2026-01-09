@@ -25,23 +25,23 @@ CREATE TABLE images (
 
 --------------- END OF IMAGES TABLE DEFINITION --------------
 
---------------- EMBEDDINGS TABLE DEFINITION ------------------
+--------------- IMAGE EMBEDDINGS TABLE DEFINITION ------------------
 
-CREATE TABLE embeddings (
-    embeddings_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    embeddings_image_id INTEGER,
-    embeddings_vector BLOB,
-    embeddings_model TEXT,
-    embeddings_dimension INTEGER,
-    embeddings_device TEXT,
-    embeddings_status TEXT DEFAULT 'pending',
-    embeddings_processing_time REAL,
-    embeddings_error TEXT,
-    embeddings_created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
-    FOREIGN KEY (embeddings_image_id) REFERENCES images(images_id) ON DELETE CASCADE
+CREATE TABLE image_embeddings (
+    image_embeddings_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    image_embeddings_image_id INTEGER,
+    image_embeddings_vector BLOB,
+    image_embeddings_model TEXT,
+    image_embeddings_dimension INTEGER,
+    image_embeddings_device TEXT,
+    image_embeddings_status TEXT DEFAULT 'pending',
+    image_embeddings_processing_time REAL,
+    image_embeddings_error TEXT,
+    image_embeddings_created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    FOREIGN KEY (image_embeddings_image_id) REFERENCES images(images_id) ON DELETE CASCADE
 );
 
---------------- END OF EMBEDDINGS TABLE DEFINITION -----------
+--------------- END OF IMAGE EMBEDDINGS TABLE DEFINITION -----------
 
 --------------- IMAGE_HASHES TABLE DEFINITION ----------------
 
@@ -79,18 +79,18 @@ CREATE TABLE image_group_members (
 
 --------------- END OF IMAGE_GROUP_MEMBERS TABLE DEFINITION ---
 
---------------- CAPTIONS TABLE DEFINITION ----------------------
+--------------- IMAGE CAPTIONS TABLE DEFINITION ----------------------
 
-CREATE TABLE captions (
-    captions_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    captions_image_id INTEGER,
-    captions_caption TEXT,
-    captions_model TEXT,
-    captions_created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
-    FOREIGN KEY (captions_image_id) REFERENCES images(images_id) ON DELETE CASCADE
+CREATE TABLE image_captions (
+    image_captions_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    image_captions_image_id INTEGER,
+    image_captions_caption TEXT,
+    image_captions_model TEXT,
+    image_captions_created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    FOREIGN KEY (image_captions_image_id) REFERENCES images(images_id) ON DELETE CASCADE
 );
 
---------------- END OF CAPTIONS TABLE DEFINITION --------------
+--------------- END OF IMAGE CAPTIONS TABLE DEFINITION --------------
 
 --------------- IDENTIFIABLE_PERSONS TABLE DEFINITION --------
 

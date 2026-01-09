@@ -47,6 +47,9 @@ class WidgetConnectionManager(QObject):
             action_toolbar.path_changed.connect(lambda p, m=central.manager: m.load_path(p) if hasattr(m, 'load_path') else None)
             action_toolbar.refresh_requested.connect(nav.refresh_tree)
 
+            action_toolbar.path_changed.connect(lambda p, a=sidebar.action_widget: a.set_current_directory(p) if hasattr(a, 'set_current_directory') else None)
+            action_toolbar.path_changed.connect(lambda p, d=sidebar.action_details: d.set_current_directory(p) if hasattr(d, 'set_current_directory') else None)
+
         if search_toolbar:
             search_toolbar.search_requested.connect(lambda q: self._show_status(f"Search: {q}", 1500))
 

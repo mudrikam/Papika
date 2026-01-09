@@ -1,7 +1,11 @@
 from pathlib import Path
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton
+
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import QLabel, QPushButton, QVBoxLayout, QWidget
+
 import qtawesome as qta
+
+from PapikaCore.papika_directory_operations import is_scan_required
 from PapikaCore.papika_initiate_directory_scan import scan_directory
 
 class SidebarActionWidget(QWidget):
@@ -17,13 +21,13 @@ class SidebarActionWidget(QWidget):
         label = QLabel('Step 1 Scan Directory')
         label.setAlignment(Qt.AlignLeft)
         layout.addWidget(label)
-        scan_directory_button = QPushButton('Scan Directory', self)
-        scan_directory_button.setObjectName('scan_directory_button')
-        scan_directory_button.setIcon(qta.icon('fa6s.folder-open'))
-        scan_directory_button.setCursor(Qt.PointingHandCursor)
-        scan_directory_button.setFixedHeight(36)
-        scan_directory_button.clicked.connect(self._on_scan_directory_clicked)
-        layout.addWidget(scan_directory_button)
+        self.scan_directory_button = QPushButton('Scan Directory', self)
+        self.scan_directory_button.setObjectName('scan_directory_button')
+        self.scan_directory_button.setIcon(qta.icon('fa6s.folder-open'))
+        self.scan_directory_button.setCursor(Qt.PointingHandCursor)
+        self.scan_directory_button.setFixedHeight(36)
+        self.scan_directory_button.clicked.connect(self._on_scan_directory_clicked)
+        layout.addWidget(self.scan_directory_button)
         
         label2 = QLabel('Step 2 Generate Embedding')
         label2.setAlignment(Qt.AlignLeft)
@@ -58,6 +62,22 @@ class SidebarActionWidget(QWidget):
     
     def set_current_directory(self, directory_path: str):
         self.current_directory = directory_path
+        self._update_scan_button_text()
+    
+    def _update_scan_button_text(self):
+        if not self.current_directory:
+            self.scan_directory_button.setText('Scan Directory')
+            return
+        
+        try:
+            base_path = Path(__file__).parent.parent.parent.parent
+            if is_scan_required(Path(self.current_directory), base_path):
+                self.scan_directory_button.setText('Scan Directory (required)')
+            else:
+                self.scan_directory_button.setText('Scan Directory')
+        except Exception as e:
+            print(f"Error updating scan button text: {e}")
+            self.scan_directory_button.setText('Scan Directory')
     
     def _refresh_file_pane(self):
         if not self.current_directory:
@@ -89,6 +109,7 @@ class SidebarActionWidget(QWidget):
             
             from PySide6.QtCore import QTimer
             QTimer.singleShot(100, lambda: self._refresh_file_pane())
+            QTimer.singleShot(200, lambda: self._update_scan_button_text())
             
         except Exception as e:
             print(f"Error during scan: {e}")

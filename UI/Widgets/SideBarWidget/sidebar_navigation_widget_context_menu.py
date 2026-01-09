@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QMenu, QMessageBox
 import qtawesome as qta
 
 from Configs.configs_file_manager import load_config
+from PapikaCore.papika_directory_operations import is_scan_required
 
 
 class SidebarNavigationContextMenu(QObject):
@@ -19,7 +20,12 @@ class SidebarNavigationContextMenu(QObject):
         menu = QMenu(parent_widget)
         
         if path and path != "network://":
-            scan_action = menu.addAction("Scan Directory")
+            base_path = Path(__file__).parent.parent.parent.parent
+            scan_text = "Scan Directory"
+            if is_scan_required(Path(path), base_path):
+                scan_text = "Scan Directory (required)"
+            
+            scan_action = menu.addAction(scan_text)
             scan_action.setIcon(qta.icon('fa6s.folder-open'))
             scan_action.triggered.connect(lambda: self.scan_requested.emit(path))
             

@@ -86,16 +86,16 @@ class DatabaseManager:
     
     def insert_embedding(self, image_id, vector, model, dimension, device, status='pending', processing_time=None, error=None):
         query = """
-            INSERT INTO embeddings (embeddings_image_id, embeddings_vector, embeddings_model, 
-                                   embeddings_dimension, embeddings_device, embeddings_status,
-                                   embeddings_processing_time, embeddings_error)
+            INSERT INTO image_embeddings (image_embeddings_image_id, image_embeddings_vector, image_embeddings_model, 
+                                   image_embeddings_dimension, image_embeddings_device, image_embeddings_status,
+                                   image_embeddings_processing_time, image_embeddings_error)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """
         cursor = self.execute_query(query, (image_id, vector, model, dimension, device, status, processing_time, error))
         return cursor.lastrowid
     
     def get_embeddings_by_image_id(self, image_id):
-        query = "SELECT * FROM embeddings WHERE embeddings_image_id = ?"
+        query = "SELECT * FROM image_embeddings WHERE image_embeddings_image_id = ?"
         return self.fetch_all(query, (image_id,))
     
     def insert_image_hash(self, image_id, hash_value, algorithm):
@@ -116,14 +116,14 @@ class DatabaseManager:
     
     def insert_caption(self, image_id, caption, model):
         query = """
-            INSERT INTO captions (captions_image_id, captions_caption, captions_model)
+            INSERT INTO image_captions (image_captions_image_id, image_captions_caption, image_captions_model)
             VALUES (?, ?, ?)
         """
         cursor = self.execute_query(query, (image_id, caption, model))
         return cursor.lastrowid
     
     def get_captions_by_image_id(self, image_id):
-        query = "SELECT * FROM captions WHERE captions_image_id = ?"
+        query = "SELECT * FROM image_captions WHERE image_captions_image_id = ?"
         return self.fetch_all(query, (image_id,))
     
     def create_image_group(self, group_name):
