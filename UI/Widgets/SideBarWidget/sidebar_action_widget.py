@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QLabel, QPushButton, QVBoxLayout, QWidget, QSizePolicy, QMessageBox
+from PySide6.QtCore import Qt, Signal, QEvent
+from PySide6.QtWidgets import QLabel, QPushButton, QVBoxLayout, QWidget, QSizePolicy, QMessageBox, QScrollArea
 
 import qtawesome as qta
 
@@ -18,7 +18,21 @@ class SidebarActionWidget(QWidget):
         self.current_directory = None
         self.sizes = PAPIKA_THEME.get_sizes()
         self.spacing = PAPIKA_THEME.get_spacing()
-        layout = QVBoxLayout(self)
+        
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll_area.setFrameShape(QScrollArea.NoFrame)
+        scroll_area.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+        
+        content_widget = QWidget()
+        content_widget.setStyleSheet("background: transparent;")
+        content_widget.setAttribute(Qt.WA_StyledBackground, True)
+        layout = QVBoxLayout(content_widget)
         layout.setContentsMargins(*self.spacing['margins_medium'])
         layout.setSpacing(self.spacing['spacing_medium'])
         
@@ -62,11 +76,48 @@ class SidebarActionWidget(QWidget):
         generate_hash_button.setCursor(Qt.PointingHandCursor)
         generate_hash_button.setFixedHeight(self.sizes['button_height'])
         layout.addWidget(generate_hash_button)
+        
+        self.colors = PAPIKA_THEME.get_colors()
+        btn_padding = PAPIKA_THEME.get_spacing()['padding_medium']
+        btn_style = (
+            f"QPushButton {{ background-color: transparent; border: 1px solid {self.colors['border']}; border-radius: 6px; padding: {btn_padding}; }} "
+            f"QPushButton:hover {{ background-color: {self.colors['primary_rgba_light']}; color: {self.colors['primary']}; }}"
+        )
+        for _btn in (self.scan_directory_button, generate_embedding_button, generate_caption_button, generate_hash_button):
+            _btn.setStyleSheet(btn_style)
+        
+        # set icons with inactive color and install hover event filters to colorize icon on hover
+        self._action_button_icon_map = {
+            self.scan_directory_button: 'fa6s.folder-open',
+            generate_embedding_button: 'fa6s.wand-magic-sparkles',
+            generate_caption_button: 'fa6s.image',
+            generate_hash_button: 'fa6s.hashtag'
+        }
+        inactive_color = self.colors.get('icon_inactive', '#9CA3AF')
+        for btn, icon_name in self._action_button_icon_map.items():
+            btn.setIcon(qta.icon(icon_name, color=inactive_color))
+            btn.installEventFilter(self)
+        
         layout.addStretch()
+        
+        scroll_area.setWidget(content_widget)
+        main_layout.addWidget(scroll_area)
     
     def set_current_directory(self, directory_path: str):
         self.current_directory = directory_path
         self._update_scan_button_text()
+
+    def eventFilter(self, obj, event):
+        # Handle hover enter/leave for action buttons to colorize icons
+        if event.type() == QEvent.Enter and obj in getattr(self, '_action_button_icon_map', {}):
+            icon_name = self._action_button_icon_map.get(obj)
+            if icon_name:
+                obj.setIcon(qta.icon(icon_name, color=self.colors.get('primary')))
+        elif event.type() == QEvent.Leave and obj in getattr(self, '_action_button_icon_map', {}):
+            icon_name = self._action_button_icon_map.get(obj)
+            if icon_name:
+                obj.setIcon(qta.icon(icon_name, color=self.colors.get('icon_inactive')))
+        return super().eventFilter(obj, event)
     
     def _update_scan_button_text(self):
         if not self.current_directory:

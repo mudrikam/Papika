@@ -85,7 +85,7 @@ class SidebarNavigationDetailsWidget(QWidget):
         self.size_label = QLabel("Total Size: -")
         layout.addWidget(self.size_label)
         
-        self.loaded_label = QLabel("Loaded: -")
+        self.loaded_label = QLabel("Loaded: -/-")
         layout.addWidget(self.loaded_label)
         
         layout.addStretch()
@@ -96,7 +96,7 @@ class SidebarNavigationDetailsWidget(QWidget):
             self.folders_label.setText("Folders: -")
             self.files_label.setText("Files: -")
             self.size_label.setText("Total Size: -")
-            self.loaded_label.setText("Loaded: -")
+            self.loaded_label.setText("Loaded: -/-")
             self.current_path = None
             return
         
@@ -161,4 +161,4 @@ class SidebarNavigationDetailsWidget(QWidget):
         if total > 0:
             self.loaded_label.setText(f"Loaded: {loaded}/{total}")
         else:
-            self.loaded_label.setText("Loaded: -")
+            self.loaded_label.setText("Loaded: -/-")
