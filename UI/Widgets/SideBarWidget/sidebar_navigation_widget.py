@@ -438,6 +438,31 @@ class SidebarNavigationWidget(QWidget):
         item.setExpanded(False)
         for i in range(item.childCount()):
             self._collapse_recursive(item.child(i))
+    
+    def _find_root_for_path(self, target_path_lower):
+        root = self.tree.invisibleRootItem()
+        best_match = None
+        best_match_len = 0
+        
+        for i in range(root.childCount()):
+            section = root.child(i)
+            
+            for j in range(section.childCount()):
+                item = section.child(j)
+                item_path = item.data(0, Qt.UserRole)
+                if not item_path or item_path == "network://":
+                    continue
+                
+                item_path_norm = os.path.normpath(str(item_path)).lower()
+                item_with_sep = item_path_norm + os.sep if not item_path_norm.endswith(os.sep) else item_path_norm
+                target_with_sep = target_path_lower + os.sep if not target_path_lower.endswith(os.sep) else target_path_lower
+                
+                if target_with_sep.startswith(item_with_sep) or target_with_sep == item_path_norm:
+                    if len(item_path_norm) > best_match_len:
+                        best_match = item
+                        best_match_len = len(item_path_norm)
+        
+        return best_match
 
     def _show_status(self, text: str, timeout: int = 0):
         try:
@@ -502,54 +527,65 @@ class SidebarNavigationWidget(QWidget):
 
     def _expand_to_path(self, target_path):
         target_str = os.path.normpath(str(target_path)).lower()
+        target_parts = target_str.split(os.sep)
         
-        def find_and_expand(parent_item, depth=0):
-            if parent_item is None:
-                root = self.tree.invisibleRootItem()
-                for i in range(root.childCount()):
-                    item = root.child(i)
-                    if find_and_expand(item, depth):
-                        return True
-                return False
-            
-            item_path = parent_item.data(0, Qt.UserRole)
-            if not item_path or item_path == "network://":
-                for i in range(parent_item.childCount()):
-                    if find_and_expand(parent_item.child(i), depth + 1):
-                        return True
-                return False
-            
-            item_path_norm = os.path.normpath(str(item_path)).lower()
-            
-            if item_path_norm == target_str:
-                self.tree.setCurrentItem(parent_item)
-                self.tree.scrollToItem(parent_item, QTreeWidget.PositionAtTop)
-                parent_item.setExpanded(True)
-                return True
-            
-            target_with_sep = target_str + os.sep if not target_str.endswith(os.sep) else target_str
-            item_with_sep = item_path_norm + os.sep if not item_path_norm.endswith(os.sep) else item_path_norm
-            
-            if target_with_sep.startswith(item_with_sep):
-                if not parent_item.isExpanded():
-                    parent_item.setExpanded(True)
-                    self.on_item_expanded(parent_item)
-
-                start = time.time()
-                while parent_item.childCount() == 1 and parent_item.child(0).text(0) == "Loading...":
-                    QApplication.processEvents()
-                    if time.time() - start > 10:
-                        break
-                    time.sleep(0.05)
-                
-                for i in range(parent_item.childCount()):
-                    child = parent_item.child(i)
-                    if find_and_expand(child, depth + 1):
-                        return True
-            
+        root_item = self._find_root_for_path(target_str)
+        if not root_item:
             return False
         
-        return find_and_expand(None)
+        current_item = root_item
+        root_item_path = root_item.data(0, Qt.UserRole)
+        if not root_item_path:
+            return False
+        
+        root_path_norm = os.path.normpath(str(root_item_path)).lower()
+        
+        if root_path_norm == target_str:
+            self.tree.setCurrentItem(root_item)
+            self.tree.scrollToItem(root_item, QTreeWidget.PositionAtTop)
+            root_item.setExpanded(True)
+            return True
+        
+        remaining_path = os.path.relpath(target_str, root_path_norm)
+        if remaining_path.startswith('..'):
+            return False
+        
+        path_segments = remaining_path.split(os.sep) if remaining_path != '.' else []
+        
+        for segment in path_segments:
+            if not segment or segment == '.':
+                continue
+            
+            if not current_item.isExpanded():
+                current_item.setExpanded(True)
+                self.on_item_expanded(current_item)
+                
+                start = time.time()
+                while current_item.childCount() == 1 and current_item.child(0).text(0) == "Loading...":
+                    QApplication.processEvents()
+                    if time.time() - start > 10:
+                        return False
+                    time.sleep(0.05)
+            
+            found_child = None
+            for i in range(current_item.childCount()):
+                child = current_item.child(i)
+                child_path = child.data(0, Qt.UserRole)
+                if child_path:
+                    child_name = Path(child_path).name.lower()
+                    if child_name == segment.lower():
+                        found_child = child
+                        break
+            
+            if not found_child:
+                return False
+            
+            current_item = found_child
+        
+        self.tree.setCurrentItem(current_item)
+        self.tree.scrollToItem(current_item, QTreeWidget.PositionAtTop)
+        current_item.setExpanded(True)
+        return True
     
     def _show_context_menu(self, position):
         item = self.tree.itemAt(position)

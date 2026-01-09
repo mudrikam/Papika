@@ -105,7 +105,7 @@ class DirectoryScanThread(QThread):
         db_manager = DatabaseManager(db_path)
         db_manager.connect()
         
-        current_image_paths = {str(img) for img in image_files}
+        current_image_paths = {str(img.resolve()) for img in image_files}
         db_images = db_manager.get_all_images()
         db_image_paths = {row['images_path']: row['images_id'] for row in db_images}
         
@@ -117,7 +117,7 @@ class DirectoryScanThread(QThread):
                            if db_path_str not in current_image_paths]
         
         total_delete = len(images_to_delete)
-        if total_delete > 0:
+        if total_delete > 0 and len(db_image_paths) > 0:
             for idx, (db_path_str, db_image_id) in enumerate(images_to_delete):
                 if self._is_cancelled:
                     db_manager.disconnect()
@@ -150,7 +150,7 @@ class DirectoryScanThread(QThread):
                 modified_at = datetime.fromtimestamp(stat.st_mtime).isoformat()
                 accessed_at = datetime.fromtimestamp(stat.st_atime).isoformat()
                 
-                image_path_str = str(image_path)
+                image_path_str = str(image_path.resolve())
                 existing = db_manager.get_image_by_path(image_path_str)
                 
                 if existing:
